@@ -1460,4 +1460,3 @@ function preloadAllMockups(){
     });
   });
 }
-}
