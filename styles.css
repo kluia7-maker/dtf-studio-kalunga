@@ -146,6 +146,9 @@ header{
   display:block;
   user-select:none;
   pointer-events:none;
+  /* Item 3 — sombra discreta para profundidade */
+  filter: drop-shadow(0 8px 32px rgba(0,0,0,0.55))
+          drop-shadow(0 2px 8px rgba(0,0,0,0.35));
 }
 .mockup-overlay{
   position:absolute;inset:0;
@@ -182,9 +185,13 @@ header{
 .zone.stamped{background:transparent !important;border:none !important;}
 .zone.stamped .zone-label{display:none}
 .zone-stamp-img{
-  position:absolute;inset:0;
+  position:absolute;
   width:100%;height:100%;
+  /* Item 5 — topo centralizado em todas as zonas */
   object-fit:contain;
+  object-position:center top;
+  /* Item 4 — blend mode para efeito de impressão no tecido */
+  mix-blend-mode:multiply;
   pointer-events:none;
 }
 .zone-stamp-emoji{
