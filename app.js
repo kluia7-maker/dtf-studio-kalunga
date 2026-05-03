@@ -263,8 +263,6 @@ async function loadDBFromCloud(){
     if(bdoc.exists && bdoc.data().color){
       mockupBg=bdoc.data().color;
       document.getElementById('mockupStage').style.background=mockupBg;
-      const inp=document.getElementById('adminBgColor');
-      if(inp) inp.value=mockupBg;
     }
   }catch(e){
     const lb=localStorage.getItem('dtf_mockupBg');
@@ -322,8 +320,9 @@ async function loadOrdersFromCloud(){
 let stampsDB      = JSON.parse(JSON.stringify(DEFAULT_DB));
 let ordersHistory = [];
 let garment       = 'camiseta';
-let color         = 'branco';
-let mockupBg      = '#0d2233'; // cor de fundo do mockup — configurável pelo admin
+let color         = 'branco'; // branco | preto | cinza
+let mockupBg      = '#0d2233'; // cor de fundo — configurável pelo admin
+let mockupBgImg   = null;      // imagem de fundo WebP
 let viewIdx       = 0;
 let selected      = {};
 let activePosId   = null;
@@ -337,8 +336,31 @@ function currentViewKey(){ return garment+'-'+VIEWS[viewIdx].key; }
 function renderMockup(){
   const key = currentViewKey();
   const img = document.getElementById('mockupImg');
-  // Apply background color
-  document.getElementById('mockupStage').style.background = mockupBg;
+  const stage = document.getElementById('mockupStage');
+  // Apply background
+  stage.style.background = mockupBg;
+  if(mockupBgImg){
+    stage.style.backgroundImage = `url(${mockupBgImg})`;
+    stage.style.backgroundSize = 'cover';
+    stage.style.backgroundPosition = 'center';
+  }
+  // Item 3 — Blend mode dinâmico por cor da camiseta
+  updateStampBlendMode();
+  img.onload = placeZones;
+  img.src = imgSrc(key);
+  if(img.complete && img.naturalWidth) placeZones();
+  renderViewDots();
+}
+
+// Blend mode: multiply para claro, screen para preto
+function updateStampBlendMode(){
+  const blendMode = color === 'preto' ? 'screen' : 'multiply';
+  document.querySelectorAll('.zone-stamp-img').forEach(el=>{
+    el.style.mixBlendMode = blendMode;
+  });
+  // Save for CSS var so new zones pick it up
+  document.documentElement.style.setProperty('--stamp-blend', blendMode);
+}
   img.onload = placeZones;
   img.src = imgSrc(key);
   if(img.complete && img.naturalWidth) placeZones();
@@ -381,6 +403,8 @@ function placeZones(){
       if(s.imgUrl){
         const si = document.createElement('img');
         si.src = s.imgUrl; si.className = 'zone-stamp-img';
+        // Item 3 — blend mode dinâmico
+        si.style.mixBlendMode = color === 'preto' ? 'screen' : 'multiply';
         el.appendChild(si);
       } else {
         const sp = document.createElement('div');
@@ -450,6 +474,12 @@ function toggleSizesAccordion(bar){
   body.classList.toggle('open');
 }
 
+function toggleStampsAccordion(bar){
+  bar.classList.toggle('open');
+  const body = document.getElementById('stampsBody');
+  body.classList.toggle('open');
+}
+
 // ══════════════════════════════════════════════════════
 // VIEW NAVIGATION
 // ══════════════════════════════════════════════════════
@@ -490,6 +520,7 @@ function setColor(c, btn){
   document.querySelectorAll('.cbtn')
     .forEach(b=>b.classList.toggle('active', b===btn));
   renderMockup();
+  updateStampBlendMode();
 }
 
 // ══════════════════════════════════════════════════════
@@ -1122,7 +1153,7 @@ function renderAdmin(){
 
   const sizesHtml=`<div class="acard" style="grid-column:1/-1;padding:0;overflow:hidden">
     <div class="accordion-bar" onclick="toggleSizesAccordion(this)">
-      <h3>📏 Tabela de Medidas &amp; 🎨 Plano de Fundo</h3>
+      <h3>📏 Medidas &amp; 🎨 Plano de Fundo</h3>
       <span class="accordion-arrow">▼</span>
     </div>
     <div class="accordion-body" id="sizesBody">
@@ -1137,41 +1168,49 @@ function renderAdmin(){
         </div>
 
         <!-- Fundo do mockup -->
-        <div style="min-width:180px;background:var(--bg);border-radius:10px;padding:14px;border:1px solid var(--border)">
+        <div style="min-width:190px;background:var(--bg);border-radius:10px;padding:14px;border:1px solid var(--border)">
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">🎨 Plano de Fundo</div>
 
           <!-- Preview swatch -->
-          <div id="adminBgSwatch" style="width:100%;height:64px;border-radius:8px;border:1px solid var(--border);margin-bottom:10px;background:${mockupBg};transition:background .2s"></div>
+          <div id="adminBgSwatch" style="width:100%;height:60px;border-radius:8px;border:1px solid var(--border);margin-bottom:10px;background:${mockupBg};transition:background .2s;overflow:hidden;position:relative">
+            <div id="adminBgImgPreview" style="position:absolute;inset:0;background-size:cover;background-position:center;display:none"></div>
+          </div>
 
           <!-- Color picker -->
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-            <label style="font-size:11px;color:var(--muted);flex-shrink:0">Cor:</label>
             <input type="color" id="adminBgColor" value="${mockupBg}"
-              style="width:44px;height:32px;border:none;border-radius:6px;cursor:pointer;background:none;padding:0"
+              style="width:40px;height:30px;border:none;border-radius:6px;cursor:pointer;padding:0;flex-shrink:0"
               oninput="applyMockupBg(this.value)">
             <input type="text" id="adminBgHex" value="${mockupBg}"
               style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;font-family:monospace"
-              oninput="syncBgHex(this.value)"
-              placeholder="#0d2233">
+              oninput="syncBgHex(this.value)" placeholder="#0d2233">
           </div>
 
-          <!-- Presets rápidos -->
-          <div style="font-size:10px;color:var(--muted);margin-bottom:6px">Presets rápidos:</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <!-- WebP upload -->
+          <div style="margin-bottom:10px">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:5px">
+              Imagem de fundo <span style="color:var(--accent2);font-weight:700">(.webp)</span>
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1.5px dashed var(--muted2);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .2s"
+              onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+              onmouseout="this.style.borderColor='var(--muted2)';this.style.color='var(--muted)'">
+              🖼️ Buscar imagem .webp
+              <input type="file" accept=".webp,image/webp" style="display:none" onchange="pickBgImage(this)">
+            </label>
+            <div id="bgImgName" style="font-size:10px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+          </div>
+
+          <!-- Presets -->
+          <div style="font-size:10px;color:var(--muted);margin-bottom:5px">Presets:</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">
             ${[
-              {c:'#0d2233',n:'Petróleo'},
-              {c:'#0e0e0e',n:'Preto'},
-              {c:'#1a1a2e',n:'Noite'},
-              {c:'#1e3a1e',n:'Floresta'},
-              {c:'#2a1a0e',n:'Café'},
-              {c:'#1a0a1e',n:'Roxo'},
-              {c:'#ffffff',n:'Branco'},
-            ].map(p=>`
-              <div title="${p.n}" onclick="setPresetBg('${p.c}')"
-                style="width:28px;height:28px;border-radius:6px;background:${p.c};cursor:pointer;border:2px solid var(--border);transition:transform .15s;flex-shrink:0"
-                onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
-              </div>
-            `).join('')}
+              {c:'#0d2233',n:'Petróleo'},{c:'#0e0e0e',n:'Preto'},
+              {c:'#1a1a2e',n:'Noite'},{c:'#1e3a1e',n:'Floresta'},
+              {c:'#2a1a0e',n:'Café'},{c:'#1a0a1e',n:'Roxo'},
+              {c:'#f0f0f0',n:'Branco'},
+            ].map(p=>`<div title="${p.n}" onclick="setPresetBg('${p.c}')"
+              style="width:26px;height:26px;border-radius:5px;background:${p.c};cursor:pointer;border:2px solid var(--border);transition:transform .15s"
+              onmouseover="this.style.transform='scale(1.18)'" onmouseout="this.style.transform='scale(1)'"></div>`).join('')}
           </div>
 
           <button class="abtn" onclick="saveMockupBg()" style="width:100%;padding:8px">💾 Salvar fundo</button>
@@ -1181,41 +1220,54 @@ function renderAdmin(){
     </div>
   </div>`;
 
-  g.innerHTML = sizesHtml + ALL_POS.map(pos=>{
-    const stamps=stampsDB[pos.id]||[];
-    const rows=stamps.map((s,i)=>{
-      const th=s.imgUrl
-        ?`<img class="athumb" src="${s.imgUrl}" alt="">`
-        :`<span style="font-size:18px">${s.emoji||'🖼️'}</span>`;
-      return `<div class="arow">${th}
-        <span class="acode">${s.code}</span>
-        <span class="aname">${s.name}</span>
-        <span class="aprice">R$${s.price}</span>
-        <button class="adel" onclick="delStamp('${pos.id}',${i})">×</button>
-      </div>`;
-    }).join('')||'<div style="color:var(--muted);font-size:11px">Sem estampas</div>';
+  g.innerHTML = sizesHtml + `
+  <div class="acard" style="grid-column:1/-1;padding:0;overflow:hidden">
+    <div class="accordion-bar" onclick="toggleStampsAccordion(this)">
+      <h3>🖼️ Gerenciar Estampas</h3>
+      <span class="accordion-arrow">▼</span>
+    </div>
+    <div class="accordion-body" id="stampsBody">
+      <div style="padding:12px 14px 14px">
+        <div class="atag" style="margin-bottom:12px">Adicione e remova estampas por posição — salvo automaticamente na nuvem</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+          ${ALL_POS.map(pos=>{
+            const stamps=stampsDB[pos.id]||[];
+            const rows=stamps.map((s,i)=>{
+              const th=s.imgUrl
+                ?`<img class="athumb" src="${s.imgUrl}" alt="">`
+                :`<span style="font-size:18px">${s.emoji||'🖼️'}</span>`;
+              return `<div class="arow">${th}
+                <span class="acode">${s.code}</span>
+                <span class="aname">${s.name}</span>
+                <span class="aprice">R$${s.price}</span>
+                <button class="adel" onclick="delStamp('${pos.id}',${i})">×</button>
+              </div>`;
+            }).join('')||'<div style="color:var(--muted);font-size:11px">Sem estampas</div>';
 
-    return `<div class="acard">
-      <h3>${pos.label}</h3>
-      <div class="atag">Camiseta &amp; Moletom</div>
-      <div class="alist">${rows}</div>
-      <label class="upload-lbl">
-        📁 Subir imagens em lote
-        <input type="file" accept="image/*" multiple style="display:none" onchange="batchUpload(this,'${pos.id}')">
-      </label>
-      <div class="aform">
-        <label class="aimg-pick" title="Selecionar imagem">
-          🖼️
-          <input type="file" accept="image/*" style="display:none" onchange="pickStampImg(this,'${pos.id}')">
-        </label>
-        <div class="aimg-preview" id="apreview_${pos.id}"></div>
-        <input id="an_${pos.id}" placeholder="Nome da estampa" style="flex:2">
-        <input id="ap_${pos.id}" type="number" placeholder="R$" style="max-width:52px">
-        <button class="abtn" onclick="addStamp('${pos.id}')">+</button>
+            return `<div class="acard">
+              <h3>${pos.label}</h3>
+              <div class="atag">Camiseta &amp; Moletom</div>
+              <div class="alist">${rows}</div>
+              <label class="upload-lbl">
+                📁 Subir imagens em lote
+                <input type="file" accept="image/*" multiple style="display:none" onchange="batchUpload(this,'${pos.id}')">
+              </label>
+              <div class="aform">
+                <label class="aimg-pick" title="Selecionar imagem">
+                  🖼️
+                  <input type="file" accept="image/*" style="display:none" onchange="pickStampImg(this,'${pos.id}')">
+                </label>
+                <div class="aimg-preview" id="apreview_${pos.id}"></div>
+                <input id="an_${pos.id}" placeholder="Nome da estampa" style="flex:2">
+                <input id="ap_${pos.id}" type="number" placeholder="R$" style="max-width:52px">
+                <button class="abtn" onclick="addStamp('${pos.id}')">+</button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
       </div>
-    </div>`;
-  }).join('');
-}
+    </div>
+  </div>`;
 
 function updateSize(product, idx, field, val){
   if(!sizesDB[product]) return;
@@ -1227,40 +1279,6 @@ async function saveSizes(){
   try{
     await db.collection('config').doc('sizes').set({sizes:sizesDB});
     showToast('✅ Medidas salvas!','var(--green)');
-  }catch(e){
-    showToast('⚠️ Salvo local (sem conexão)','var(--accent2)');
-  }
-}
-
-function applyMockupBg(val){
-  mockupBg = val;
-  document.getElementById('mockupStage').style.background = val;
-  const swatch = document.getElementById('adminBgSwatch');
-  if(swatch) swatch.style.background = val;
-  const hex = document.getElementById('adminBgHex');
-  if(hex) hex.value = val;
-  const picker = document.getElementById('adminBgColor');
-  if(picker) picker.value = val;
-}
-
-function syncBgHex(val){
-  // Validate hex before applying
-  if(/^#[0-9a-fA-F]{6}$/.test(val)){
-    applyMockupBg(val);
-  }
-}
-
-function setPresetBg(val){
-  applyMockupBg(val);
-}
-
-async function saveMockupBg(){
-  const val = document.getElementById('adminBgColor').value;
-  applyMockupBg(val);
-  try{ localStorage.setItem('dtf_mockupBg', val); }catch(e){}
-  try{
-    await db.collection('config').doc('mockupBg').set({color: val});
-    showToast('✅ Fundo salvo!','var(--green)');
   }catch(e){
     showToast('⚠️ Salvo local (sem conexão)','var(--accent2)');
   }
@@ -1339,6 +1357,67 @@ function addStamp(pid){
 function delStamp(pid,idx){
   if(!confirm('Remover esta estampa?')) return;
   stampsDB[pid].splice(idx,1);saveDB();renderAdmin();showToast('🗑 Removida');
+}
+
+// ══════════════════════════════════════════════════════
+// MOCKUP BACKGROUND
+// ══════════════════════════════════════════════════════
+function applyMockupBg(val){
+  mockupBg = val;
+  const stage = document.getElementById('mockupStage');
+  stage.style.background = val;
+  const swatch = document.getElementById('adminBgSwatch');
+  if(swatch) swatch.style.background = val;
+  const hex = document.getElementById('adminBgHex');
+  if(hex) hex.value = val;
+  const picker = document.getElementById('adminBgColor');
+  if(picker) picker.value = val;
+}
+
+function syncBgHex(val){
+  if(/^#[0-9a-fA-F]{6}$/.test(val)) applyMockupBg(val);
+}
+
+function setPresetBg(val){
+  mockupBgImg = null;
+  const stage = document.getElementById('mockupStage');
+  stage.style.backgroundImage = 'none';
+  const imgPrev = document.getElementById('adminBgImgPreview');
+  if(imgPrev) imgPrev.style.display='none';
+  const nameEl = document.getElementById('bgImgName');
+  if(nameEl) nameEl.textContent='';
+  applyMockupBg(val);
+}
+
+function pickBgImage(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(file.type !== 'image/webp' && !file.name.toLowerCase().endsWith('.webp')){
+    showToast('❌ Apenas arquivos .webp são aceitos!','var(--accent)');
+    input.value='';
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  mockupBgImg = url;
+  const stage = document.getElementById('mockupStage');
+  stage.style.backgroundImage = `url(${url})`;
+  stage.style.backgroundSize = 'cover';
+  stage.style.backgroundPosition = 'center';
+  const imgPrev = document.getElementById('adminBgImgPreview');
+  if(imgPrev){ imgPrev.style.backgroundImage=`url(${url})`; imgPrev.style.display='block'; }
+  const nameEl = document.getElementById('bgImgName');
+  if(nameEl) nameEl.textContent = '✅ '+file.name;
+  showToast('✅ Imagem aplicada!','var(--green)');
+}
+
+async function saveMockupBg(){
+  try{ localStorage.setItem('dtf_mockupBg', mockupBg); }catch(e){}
+  try{
+    await db.collection('config').doc('mockupBg').set({color: mockupBg});
+    showToast('✅ Fundo salvo!','var(--green)');
+  }catch(e){
+    showToast('⚠️ Salvo local (sem conexão)','var(--accent2)');
+  }
 }
 
 // ══════════════════════════════════════════════════════
