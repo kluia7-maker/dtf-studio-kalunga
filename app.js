@@ -89,12 +89,12 @@ const ZONES = {
     {id:'costas-grande',  top:33.0, left:28.0, w:44.0, h:38.0},
     {id:'costas-central', top:33.0, left:28.0, w:44.0, h:10.0},
   ],
-  // Mangas moletom — posições próprias (manga longa)
+  // Mangas moletom calibradas
   'moletom-lat-dir':[
-    {id:'manga-mol-dir', top:54.0, left:14.0, w:33.4, h:38.0, rotate:-13},
+    {id:'manga-dir', top:54.0, left:14.0, w:33.4, h:38.0, rotate:-13},
   ],
   'moletom-lat-esq':[
-    {id:'manga-mol-esq', top:54.0, left:49.0, w:33.4, h:38.0, rotate:6},
+    {id:'manga-esq', top:54.0, left:49.0, w:33.4, h:38.0, rotate:6},
   ],
 };
 
@@ -107,8 +107,6 @@ const POS_META = {
   'costas-central': {label:'Costas Central'},
   'manga-dir':      {label:'Manga Direita'},
   'manga-esq':      {label:'Manga Esquerda'},
-  'manga-mol-dir':  {label:'Manga Direita Moletom'},
-  'manga-mol-esq':  {label:'Manga Esquerda Moletom'},
 };
 
 const ZONE_COLORS = {
@@ -120,8 +118,6 @@ const ZONE_COLORS = {
   'costas-central':{fill:'rgba(255,170,0,0.10)',  border:'rgba(255,170,0,0.45)'},
   'manga-dir':     {fill:'rgba(200,100,255,0.10)',border:'rgba(200,100,255,0.45)'},
   'manga-esq':     {fill:'rgba(200,100,255,0.10)',border:'rgba(200,100,255,0.45)'},
-  'manga-mol-dir': {fill:'rgba(200,100,255,0.10)',border:'rgba(200,100,255,0.45)'},
-  'manga-mol-esq': {fill:'rgba(200,100,255,0.10)',border:'rgba(200,100,255,0.45)'},
 };
 
 const DEFAULT_DB = {
@@ -440,21 +436,22 @@ function placeZones(){
     }
   });
 
-  // Item 5 — Overlay do cordão do moletom (fica por cima de tudo)
+  // Overlay do cordão do moletom — por cima de tudo, com sombra
   if(garment === 'moletom' && key.includes('frente')){
     const cordaoFile = color === 'preto' ? 'CORDAO_PRETO.webp' : 'CORDAO_BRANCO.webp';
     const cordaoUrl = `${STORAGE_BASE}/mockups%2F${cordaoFile}?alt=media`;
     const cordaoEl = document.createElement('img');
     cordaoEl.src = cordaoUrl;
-    cordaoEl.style.cssText = `
-      position:absolute;
-      inset:0;
-      width:100%;
-      height:100%;
-      object-fit:contain;
-      pointer-events:none;
-      z-index:20;
-    `;
+    cordaoEl.style.cssText = [
+      'position:absolute',
+      'inset:0',
+      'width:100%',
+      'height:100%',
+      'object-fit:contain',
+      'pointer-events:none',
+      'z-index:20',
+      'filter:drop-shadow(0 12px 40px rgba(0,0,0,0.75)) drop-shadow(0 4px 12px rgba(0,0,0,0.55))',
+    ].join(';');
     overlay.appendChild(cordaoEl);
   }
 }
@@ -544,7 +541,6 @@ function setColor(c, btn){
 // CATALOG SHEET
 // ══════════════════════════════════════════════════════
 function openSheet(posId){
-  dismissUpsell();
   activePosId = posId;
   hoverStamp  = selected[posId]||null;
 
@@ -580,7 +576,12 @@ function openSheet(posId){
       </div>
       ${isSel?'<div class="scard-badge">✓</div>':''}
     `;
-    const doPreview=()=>{ hoverStamp=s; renderMiniZones(s); updatePreviewInfo(s); };
+    const doPreview=()=>{
+      // Só faz preview no hover se ainda não há estampa selecionada para esta posição
+      if(!selected[posId]){
+        hoverStamp=s; renderMiniZones(s); updatePreviewInfo(s);
+      }
+    };
     c.addEventListener('mouseenter', doPreview);
     c.addEventListener('touchstart',  doPreview, {passive:true});
     c.addEventListener('click', ()=>{
@@ -629,13 +630,11 @@ function confirmStamp(){
   updateCart();
   renderViewDots();
   showToast('✅ '+hoverStamp.name+' aplicada!','var(--green)');
-  setTimeout(()=>triggerUpsell(posId), 420);
 }
 
 function removeStamp(id){
   delete selected[id];
   renderMockup(); updateCart(); renderViewDots();
-  if(!Object.keys(selected).length) dismissUpsell();
 }
 
 // ── Mini mockup zone overlay ──────────────────────────
@@ -680,67 +679,6 @@ function renderMiniZones(previewStamp){
 }
 
 // ══════════════════════════════════════════════════════
-// UPSELL
-// ══════════════════════════════════════════════════════
-const UPSELL_MAP={
-  'peito-grande':   'costas-grande',
-  'peito-central':  'costas-central',
-  'peito-esq':      'manga-esq',
-  'peito-dir':      'manga-dir',
-  'costas-grande':  'peito-grande',
-  'costas-central': 'peito-central',
-  'manga-dir':      'manga-esq',
-  'manga-esq':      'manga-dir',
-  'manga-mol-dir':  'manga-mol-esq',
-  'manga-mol-esq':  'manga-mol-dir',
-};
-const POS_VIEW_IDX={
-  'peito-grande':0,'peito-central':0,'peito-esq':0,'peito-dir':0,
-  'costas-grande':2,'costas-central':2,
-  'manga-dir':1,'manga-esq':3,
-  'manga-mol-dir':1,'manga-mol-esq':3,
-};
-let _upsellTimer=null, _upsellTarget=null, _upsellDismissed=false;
-
-function triggerUpsell(justChosenPosId){
-  const suggest=UPSELL_MAP[justChosenPosId];
-  if(!suggest||selected[suggest]||_upsellDismissed) return;
-  _upsellTarget=suggest;
-  const meta=POS_META[suggest]||{label:suggest};
-  const stamps=stampsDB[suggest]||[];
-  const minPrice=stamps.length?Math.min(...stamps.map(s=>s.price)):null;
-  const priceStr=minPrice!=null?' — a partir de R$ '+minPrice.toFixed(2).replace('.',','):'';
-  document.getElementById('upsellTitle').textContent='Fica ainda melhor com '+meta.label+' 🔥';
-  document.getElementById('upsellSub').textContent='Adicionar'+priceStr;
-  document.getElementById('upsellBtn').onclick=acceptUpsell;
-  const bar=document.getElementById('upsellBar');
-  bar.classList.toggle('with-bar', Object.keys(selected).length>0);
-  bar.classList.add('visible');
-  clearTimeout(_upsellTimer);
-  _upsellTimer=setTimeout(dismissUpsell, 8000);
-}
-
-function dismissUpsell(){
-  clearTimeout(_upsellTimer);
-  document.getElementById('upsellBar').classList.remove('visible');
-  _upsellTarget=null;
-}
-
-function acceptUpsell(){
-  if(!_upsellTarget) return;
-  const posId=_upsellTarget;
-  dismissUpsell();
-  const targetViewIdx=POS_VIEW_IDX[posId]??0;
-  if(viewIdx!==targetViewIdx){
-    viewIdx=targetViewIdx;
-    const stage=document.getElementById('mockupStage');
-    stage.style.opacity='0'; stage.style.transition='opacity .15s';
-    setTimeout(()=>{ renderMockup(); stage.style.opacity='1';
-      setTimeout(()=>openSheet(posId),120); },150);
-  } else { openSheet(posId); }
-}
-
-// ══════════════════════════════════════════════════════
 // CART / ACTION BAR
 // ══════════════════════════════════════════════════════
 function updateCart(){
@@ -759,8 +697,6 @@ function updateCart(){
   const bar = document.getElementById('actionBar');
   bar.classList.toggle('visible', n>0);
   document.getElementById('actionTotal').textContent = fmt(t);
-
-  document.getElementById('upsellBar').classList.toggle('with-bar', n>0);
 }
 
 // ══════════════════════════════════════════════════════
@@ -768,8 +704,6 @@ function updateCart(){
 // ══════════════════════════════════════════════════════
 function resetOrder(){
   selected={};
-  _upsellDismissed=false;
-  dismissUpsell();
   renderMockup(); updateCart(); renderViewDots();
   showToast('🗑 Pedido limpo');
 }
@@ -995,8 +929,6 @@ const POS_VIEW = {
   'costas-central': 'costas',
   'manga-dir':      'lat-dir',
   'manga-esq':      'lat-esq',
-  'manga-mol-dir':  'lat-dir',
-  'manga-mol-esq':  'lat-esq',
 };
 
 function opRenderView(){
@@ -1146,10 +1078,8 @@ const ALL_POS=[
   {id:'peito-esq',      label:'Frente Esquerda'},
   {id:'costas-grande',  label:'Costas Total'},
   {id:'costas-central', label:'Costas Central'},
-  {id:'manga-dir',      label:'Manga Direita (Camiseta)'},
-  {id:'manga-esq',      label:'Manga Esquerda (Camiseta)'},
-  {id:'manga-mol-dir',  label:'Manga Direita (Moletom)'},
-  {id:'manga-mol-esq',  label:'Manga Esquerda (Moletom)'},
+  {id:'manga-dir',      label:'Manga Direita'},
+  {id:'manga-esq',      label:'Manga Esquerda'},
 ];
 
 function renderAdmin(){
@@ -1196,7 +1126,7 @@ function renderAdmin(){
           <div class="atag" style="margin-bottom:10px">Editável — L = Largura · A = Altura (cm)</div>
           ${renderSizeTable('camiseta','👕 Camiseta','camiseta')}
           ${renderSizeTable('moletom','🧥 Moletom','moletom')}
-          <button class="abtn" onclick="saveSizes()" style="padding:6px 20px;margin-top:4px">💾 Salvar medidas</button>
+          <button class="abtn" onclick="saveSizes()" style="width:100%;padding:8px;margin-top:4px">💾 Salvar medidas</button>
         </div>
 
         <!-- Fundo do mockup -->
