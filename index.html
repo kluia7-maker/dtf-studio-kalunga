@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DTF Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">DTF<span>Studio</span></div>
+  <div class="header-right">
+    <div class="sync-dot" id="syncDot" title="Status sync"></div>
+    <div class="cart-btn" id="cartBtn" onclick="openModal()">
+      🛒 <span id="cartCount" class="cart-count" style="display:none">0</span>
+      <span id="cartTotal">R$ 0,00</span>
+    </div>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('config')">🎨 Configurador</div>
+  <div class="tab" onclick="switchTab('pedidos')">📋 Pedidos</div>
+  <div class="tab" onclick="switchTab('admin')">⚙️ Estampas</div>
+</div>
+
+<!-- ══ CONFIGURATOR TAB ══ -->
+<div id="tab-config">
+
+  <!-- Garment + Color selector -->
+  <div class="garment-bar">
+    <div class="gbtn active" onclick="setGarment('camiseta',this)">👕 Camiseta</div>
+    <div class="gbtn" onclick="setGarment('moletom',this)">🧥 Moletom</div>
+    <div class="garment-sep"></div>
+    <button class="cbtn active" onclick="setColor('branco',this)" title="Branco">
+      <span class="cbtn-dot" style="background:#f0f0f0;border:1.5px solid #ccc"></span>
+    </button>
+    <button class="cbtn" onclick="setColor('preto',this)" title="Preto">
+      <span class="cbtn-dot" style="background:#1a1a1a;border:1.5px solid #444"></span>
+    </button>
+    <button class="cbtn" onclick="setColor('cinza',this)" title="Cinza Mescla">
+      <span class="cbtn-dot" style="background:#888;border:1.5px solid #666"></span>
+    </button>
+  </div>
+
+  <!-- Mockup stage -->
+  <div class="mockup-stage" id="mockupStage">
+    <img class="mockup-img" id="mockupImg" src="" alt="mockup" draggable="false">
+    <div class="mockup-overlay" id="mockupOverlay"></div>
+
+    <button class="view-arrow-left"  onclick="navigateView(-1)">&#8592;</button>
+    <button class="view-arrow-right" onclick="navigateView(1)">&#8594;</button>
+
+    <div class="view-nav-center">
+      <div class="view-name" id="viewName">Frente</div>
+      <div class="view-dots" id="viewDots"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ORDERS TAB ══ -->
+<div class="orders-wrap" id="tab-pedidos">
+  <h2>Pedidos do Dia</h2>
+  <p>Pedidos confirmados — carregados do Firebase.</p>
+  <div class="ohist" id="orderHist"><p style="color:var(--muted)">Carregando...</p></div>
+</div>
+
+<!-- ══ ADMIN TAB ══ -->
+<div class="admin-wrap" id="tab-admin">
+  <h2>Gerenciar Estampas</h2>
+  <p>Adicione e remova estampas por posição. Salvo automaticamente na nuvem.</p>
+  <div class="agrid" id="adminGrid"></div>
+</div>
+
+<!-- ══ CATALOG SHEET ══ -->
+<div class="sheet-backdrop" id="sheetBackdrop" onclick="closeSheet()"></div>
+<div class="cat-sheet" id="catSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-pos-name" id="sheetPosName">Peito Grande</div>
+    <button class="sheet-close" onclick="closeSheet()">×</button>
+  </div>
+  <div class="preview-strip">
+    <div class="mini-mockup" id="miniMockup">
+      <img class="mini-mockup-img" id="miniMockupImg" src="" alt="">
+    </div>
+    <div class="preview-info">
+      <div class="preview-hint" id="previewHint">Passe o dedo pelas estampas para visualizar</div>
+      <div class="preview-stamp-name" id="previewName">—</div>
+      <div class="preview-stamp-price" id="previewPrice"></div>
+    </div>
+    <button class="confirm-btn" id="confirmBtn" onclick="confirmStamp()" disabled>
+      ✓ Escolher
+    </button>
+  </div>
+  <div class="sheet-grid" id="sheetGrid"></div>
+</div>
+
+<!-- ══ BOTTOM ACTION BAR ══ -->
+<div class="action-bar" id="actionBar">
+  <div class="action-total">
+    <div class="action-total-label">Total selecionado</div>
+    <div class="action-total-val" id="actionTotal">R$ 0,00</div>
+  </div>
+  <div class="action-btns">
+    <button class="btn-reset" onclick="resetOrder()">↺ Limpar</button>
+    <button class="btn-fin" onclick="openModal()">Finalizar →</button>
+  </div>
+</div>
+
+<!-- ══ UPSELL BANNER ══ -->
+<div class="upsell-bar" id="upsellBar">
+  <div class="upsell-fire">🔥</div>
+  <div class="upsell-text">
+    <div class="upsell-title" id="upsellTitle">Fica ainda melhor com Costas Grande!</div>
+    <div class="upsell-sub" id="upsellSub">Adicionar por +R$ 40,00</div>
+  </div>
+  <button class="upsell-btn" id="upsellBtn">+ Adicionar</button>
+  <button class="upsell-close" onclick="dismissUpsell()">×</button>
+</div>
+
+<!-- ══ ORDER MODAL ══ -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-title">✅ Resumo do Pedido</div>
+    <p class="modal-sub">Preencha os dados e confirme.</p>
+
+    <div class="code-box">
+      <div class="code-lbl">Código do Pedido</div>
+      <div class="code-val" id="mCode">—</div>
+      <div class="code-dt" id="mDt">—</div>
+    </div>
+
+    <div id="mGarment" style="display:inline-flex;align-items:center;gap:8px;background:var(--surface2);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;margin-bottom:16px"></div>
+
+    <div class="oi-grid" id="mItems"></div>
+
+    <div class="order-total">
+      <span class="ot-lbl">Total</span>
+      <span class="ot-val" id="mTotal">R$ 0,00</span>
+    </div>
+
+    <!-- Tamanho -->
+    <div class="size-row">
+      <div class="size-row-top">
+        <span class="size-row-label">Tamanho da peça</span>
+        <button class="size-guide-link" onclick="openSizeGuide()">📏 Ver medidas</button>
+      </div>
+      <div class="size-btns" id="sizeBtns"></div>
+    </div>
+
+    <!-- Dados do cliente -->
+    <div class="client-fields">
+      <div>
+        <label for="clientName">Seu nome</label>
+        <input id="clientName" type="text" placeholder="Ex: João Silva" autocomplete="off">
+      </div>
+      <div>
+        <label for="clientPhone">WhatsApp (com DDD)</label>
+        <input id="clientPhone" type="tel" placeholder="Ex: 11999999999" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="modal-acts">
+      <button class="btn-s" onclick="closeModal()">Fechar</button>
+      <button class="btn-whatsapp" onclick="confirmOrder()">
+        ✅ Confirmar e enviar WhatsApp
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ORDER PREVIEW MODAL ══ -->
+<div class="overlay" id="orderPreviewOverlay">
+  <div class="modal" style="max-width:480px;padding:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <div class="modal-title" id="opCode" style="font-size:20px">—</div>
+        <div style="font-size:11px;color:var(--muted)" id="opDt">—</div>
+      </div>
+      <button class="btn-s" onclick="closeOrderPreview()" style="padding:7px 14px;font-size:12px">✕ Fechar</button>
+    </div>
+    <div style="position:relative;border-radius:12px;overflow:hidden;background:#0a0a0a;line-height:0" id="opMockupWrap">
+      <img id="opMockupImg" src="" alt="" style="width:100%;display:block;object-fit:contain;max-height:60dvh;">
+      <div id="opMockupOverlay" style="position:absolute;inset:0;pointer-events:none"></div>
+      <button onclick="opNavigate(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;">&#8592;</button>
+      <button onclick="opNavigate(1)"  style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;">&#8594;</button>
+      <div style="position:absolute;bottom:8px;left:0;right:0;text-align:center;pointer-events:none">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;color:rgba(255,255,255,0.6)" id="opViewName">Frente</div>
+        <div style="display:flex;gap:5px;justify-content:center;margin-top:3px" id="opDots"></div>
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px" id="opStampList"></div>
+    <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:12px">
+      <span style="font-size:13px;color:var(--muted)" id="opGarment"></span>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent)" id="opTotal"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SIZE GUIDE MODAL ══ -->
+<div class="overlay" id="sizeGuideOverlay">
+  <div class="size-guide-modal">
+    <h3>📏 Guia de Medidas</h3>
+    <p>Medidas aproximadas da peça plana (largura = busto / 2).</p>
+    <div id="sizeGuideContent"></div>
+    <button class="btn-p" onclick="closeSizeGuide()">Fechar</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
