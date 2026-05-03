@@ -1263,7 +1263,7 @@ function renderAdmin(){
       </div>
     </div>
   </div>`;
-
+}
 function updateSize(product, idx, field, val){
   if(!sizesDB[product]) return;
   sizesDB[product][idx][field] = parseFloat(val)||0;
