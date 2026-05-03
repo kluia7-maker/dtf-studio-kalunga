@@ -147,8 +147,8 @@ header{
   user-select:none;
   pointer-events:none;
   /* Item 3 — sombra discreta para profundidade */
-  filter: drop-shadow(0 8px 32px rgba(0,0,0,0.55))
-          drop-shadow(0 2px 8px rgba(0,0,0,0.35));
+  filter: drop-shadow(0 12px 40px rgba(0,0,0,0.75))
+          drop-shadow(0 4px 12px rgba(0,0,0,0.55));
 }
 .mockup-overlay{
   position:absolute;inset:0;
