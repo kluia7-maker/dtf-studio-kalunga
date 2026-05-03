@@ -89,12 +89,12 @@ const ZONES = {
     {id:'costas-grande',  top:33.0, left:28.0, w:44.0, h:38.0},
     {id:'costas-central', top:33.0, left:28.0, w:44.0, h:10.0},
   ],
-  // Mangas moletom calibradas
+  // Mangas moletom — posições próprias (manga longa)
   'moletom-lat-dir':[
-    {id:'manga-dir', top:54.0, left:14.0, w:33.4, h:38.0, rotate:-13},
+    {id:'manga-mol-dir', top:54.0, left:14.0, w:33.4, h:38.0, rotate:-13},
   ],
   'moletom-lat-esq':[
-    {id:'manga-esq', top:54.0, left:49.0, w:33.4, h:38.0, rotate:6},
+    {id:'manga-mol-esq', top:54.0, left:49.0, w:33.4, h:38.0, rotate:6},
   ],
 };
 
@@ -107,6 +107,8 @@ const POS_META = {
   'costas-central': {label:'Costas Central'},
   'manga-dir':      {label:'Manga Direita'},
   'manga-esq':      {label:'Manga Esquerda'},
+  'manga-mol-dir':  {label:'Manga Direita Moletom'},
+  'manga-mol-esq':  {label:'Manga Esquerda Moletom'},
 };
 
 const ZONE_COLORS = {
@@ -118,6 +120,8 @@ const ZONE_COLORS = {
   'costas-central':{fill:'rgba(255,170,0,0.10)',  border:'rgba(255,170,0,0.45)'},
   'manga-dir':     {fill:'rgba(200,100,255,0.10)',border:'rgba(200,100,255,0.45)'},
   'manga-esq':     {fill:'rgba(200,100,255,0.10)',border:'rgba(200,100,255,0.45)'},
+  'manga-mol-dir': {fill:'rgba(200,100,255,0.10)',border:'rgba(200,100,255,0.45)'},
+  'manga-mol-esq': {fill:'rgba(200,100,255,0.10)',border:'rgba(200,100,255,0.45)'},
 };
 
 const DEFAULT_DB = {
@@ -435,6 +439,24 @@ function placeZones(){
       document.querySelectorAll('.zone.show-del').forEach(z=>z.classList.remove('show-del'));
     }
   });
+
+  // Item 5 — Overlay do cordão do moletom (fica por cima de tudo)
+  if(garment === 'moletom' && key.includes('frente')){
+    const cordaoFile = color === 'preto' ? 'CORDAO_PRETO.webp' : 'CORDAO_BRANCO.webp';
+    const cordaoUrl = `${STORAGE_BASE}/mockups%2F${cordaoFile}?alt=media`;
+    const cordaoEl = document.createElement('img');
+    cordaoEl.src = cordaoUrl;
+    cordaoEl.style.cssText = `
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      pointer-events:none;
+      z-index:20;
+    `;
+    overlay.appendChild(cordaoEl);
+  }
 }
 
 // Show zones when tapping the mockup image area
@@ -561,7 +583,15 @@ function openSheet(posId){
     const doPreview=()=>{ hoverStamp=s; renderMiniZones(s); updatePreviewInfo(s); };
     c.addEventListener('mouseenter', doPreview);
     c.addEventListener('touchstart',  doPreview, {passive:true});
-    c.addEventListener('click', ()=>{ hoverStamp=s; renderMiniZones(s); updatePreviewInfo(s); updateConfirmBtn(); });
+    c.addEventListener('click', ()=>{
+      hoverStamp=s;
+      renderMiniZones(s);
+      updatePreviewInfo(s);
+      updateConfirmBtn();
+      // Marca visualmente o card clicado
+      grid.querySelectorAll('.scard').forEach(sc=>sc.classList.remove('sel'));
+      c.classList.add('sel');
+    });
     grid.appendChild(c);
   });
 
@@ -661,11 +691,14 @@ const UPSELL_MAP={
   'costas-central': 'peito-central',
   'manga-dir':      'manga-esq',
   'manga-esq':      'manga-dir',
+  'manga-mol-dir':  'manga-mol-esq',
+  'manga-mol-esq':  'manga-mol-dir',
 };
 const POS_VIEW_IDX={
   'peito-grande':0,'peito-central':0,'peito-esq':0,'peito-dir':0,
   'costas-grande':2,'costas-central':2,
   'manga-dir':1,'manga-esq':3,
+  'manga-mol-dir':1,'manga-mol-esq':3,
 };
 let _upsellTimer=null, _upsellTarget=null, _upsellDismissed=false;
 
@@ -962,6 +995,8 @@ const POS_VIEW = {
   'costas-central': 'costas',
   'manga-dir':      'lat-dir',
   'manga-esq':      'lat-esq',
+  'manga-mol-dir':  'lat-dir',
+  'manga-mol-esq':  'lat-esq',
 };
 
 function opRenderView(){
@@ -1111,8 +1146,10 @@ const ALL_POS=[
   {id:'peito-esq',      label:'Frente Esquerda'},
   {id:'costas-grande',  label:'Costas Total'},
   {id:'costas-central', label:'Costas Central'},
-  {id:'manga-dir',      label:'Manga Direita'},
-  {id:'manga-esq',      label:'Manga Esquerda'},
+  {id:'manga-dir',      label:'Manga Direita (Camiseta)'},
+  {id:'manga-esq',      label:'Manga Esquerda (Camiseta)'},
+  {id:'manga-mol-dir',  label:'Manga Direita (Moletom)'},
+  {id:'manga-mol-esq',  label:'Manga Esquerda (Moletom)'},
 ];
 
 function renderAdmin(){
@@ -1159,7 +1196,7 @@ function renderAdmin(){
           <div class="atag" style="margin-bottom:10px">Editável — L = Largura · A = Altura (cm)</div>
           ${renderSizeTable('camiseta','👕 Camiseta','camiseta')}
           ${renderSizeTable('moletom','🧥 Moletom','moletom')}
-          <button class="abtn" onclick="saveSizes()" style="width:100%;padding:8px;margin-top:4px">💾 Salvar medidas</button>
+          <button class="abtn" onclick="saveSizes()" style="padding:6px 20px;margin-top:4px">💾 Salvar medidas</button>
         </div>
 
         <!-- Fundo do mockup -->
