@@ -138,6 +138,7 @@ header{
   align-items:center;justify-content:center;
   background:#0d2233;
   overflow:hidden;
+  transition:background .3s ease;
 }
 .mockup-img{
   max-width:100%;max-height:100%;

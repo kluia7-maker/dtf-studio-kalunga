@@ -257,6 +257,19 @@ async function loadDBFromCloud(){
     const ls=localStorage.getItem('dtf_sizes');
     if(ls) sizesDB=JSON.parse(ls);
   }
+  // Load mockup background
+  try{
+    const bdoc=await db.collection('config').doc('mockupBg').get();
+    if(bdoc.exists && bdoc.data().color){
+      mockupBg=bdoc.data().color;
+      document.getElementById('mockupStage').style.background=mockupBg;
+      const inp=document.getElementById('adminBgColor');
+      if(inp) inp.value=mockupBg;
+    }
+  }catch(e){
+    const lb=localStorage.getItem('dtf_mockupBg');
+    if(lb){ mockupBg=lb; document.getElementById('mockupStage').style.background=mockupBg; }
+  }
   renderAdmin();
 }
 
@@ -309,7 +322,8 @@ async function loadOrdersFromCloud(){
 let stampsDB      = JSON.parse(JSON.stringify(DEFAULT_DB));
 let ordersHistory = [];
 let garment       = 'camiseta';
-let color         = 'branco'; // branco | preto | cinza
+let color         = 'branco';
+let mockupBg      = '#0d2233'; // cor de fundo do mockup — configurável pelo admin
 let viewIdx       = 0;
 let selected      = {};
 let activePosId   = null;
@@ -323,6 +337,8 @@ function currentViewKey(){ return garment+'-'+VIEWS[viewIdx].key; }
 function renderMockup(){
   const key = currentViewKey();
   const img = document.getElementById('mockupImg');
+  // Apply background color
+  document.getElementById('mockupStage').style.background = mockupBg;
   img.onload = placeZones;
   img.src = imgSrc(key);
   if(img.complete && img.naturalWidth) placeZones();
@@ -1106,15 +1122,61 @@ function renderAdmin(){
 
   const sizesHtml=`<div class="acard" style="grid-column:1/-1;padding:0;overflow:hidden">
     <div class="accordion-bar" onclick="toggleSizesAccordion(this)">
-      <h3>📏 Tabela de Medidas</h3>
+      <h3>📏 Tabela de Medidas &amp; 🎨 Plano de Fundo</h3>
       <span class="accordion-arrow">▼</span>
     </div>
     <div class="accordion-body" id="sizesBody">
-      <div style="padding:12px 14px 14px">
-        <div class="atag" style="margin-bottom:10px">Editável — L = Largura · A = Altura (cm)</div>
-        ${renderSizeTable('camiseta','👕 Camiseta','camiseta')}
-        ${renderSizeTable('moletom','🧥 Moletom','moletom')}
-        <button class="abtn" onclick="saveSizes()" style="width:100%;padding:8px;margin-top:4px">💾 Salvar medidas</button>
+      <div style="padding:12px 14px 14px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start">
+
+        <!-- Medidas -->
+        <div>
+          <div class="atag" style="margin-bottom:10px">Editável — L = Largura · A = Altura (cm)</div>
+          ${renderSizeTable('camiseta','👕 Camiseta','camiseta')}
+          ${renderSizeTable('moletom','🧥 Moletom','moletom')}
+          <button class="abtn" onclick="saveSizes()" style="width:100%;padding:8px;margin-top:4px">💾 Salvar medidas</button>
+        </div>
+
+        <!-- Fundo do mockup -->
+        <div style="min-width:180px;background:var(--bg);border-radius:10px;padding:14px;border:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">🎨 Plano de Fundo</div>
+
+          <!-- Preview swatch -->
+          <div id="adminBgSwatch" style="width:100%;height:64px;border-radius:8px;border:1px solid var(--border);margin-bottom:10px;background:${mockupBg};transition:background .2s"></div>
+
+          <!-- Color picker -->
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <label style="font-size:11px;color:var(--muted);flex-shrink:0">Cor:</label>
+            <input type="color" id="adminBgColor" value="${mockupBg}"
+              style="width:44px;height:32px;border:none;border-radius:6px;cursor:pointer;background:none;padding:0"
+              oninput="applyMockupBg(this.value)">
+            <input type="text" id="adminBgHex" value="${mockupBg}"
+              style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;font-family:monospace"
+              oninput="syncBgHex(this.value)"
+              placeholder="#0d2233">
+          </div>
+
+          <!-- Presets rápidos -->
+          <div style="font-size:10px;color:var(--muted);margin-bottom:6px">Presets rápidos:</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+            ${[
+              {c:'#0d2233',n:'Petróleo'},
+              {c:'#0e0e0e',n:'Preto'},
+              {c:'#1a1a2e',n:'Noite'},
+              {c:'#1e3a1e',n:'Floresta'},
+              {c:'#2a1a0e',n:'Café'},
+              {c:'#1a0a1e',n:'Roxo'},
+              {c:'#ffffff',n:'Branco'},
+            ].map(p=>`
+              <div title="${p.n}" onclick="setPresetBg('${p.c}')"
+                style="width:28px;height:28px;border-radius:6px;background:${p.c};cursor:pointer;border:2px solid var(--border);transition:transform .15s;flex-shrink:0"
+                onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
+              </div>
+            `).join('')}
+          </div>
+
+          <button class="abtn" onclick="saveMockupBg()" style="width:100%;padding:8px">💾 Salvar fundo</button>
+        </div>
+
       </div>
     </div>
   </div>`;
@@ -1165,6 +1227,40 @@ async function saveSizes(){
   try{
     await db.collection('config').doc('sizes').set({sizes:sizesDB});
     showToast('✅ Medidas salvas!','var(--green)');
+  }catch(e){
+    showToast('⚠️ Salvo local (sem conexão)','var(--accent2)');
+  }
+}
+
+function applyMockupBg(val){
+  mockupBg = val;
+  document.getElementById('mockupStage').style.background = val;
+  const swatch = document.getElementById('adminBgSwatch');
+  if(swatch) swatch.style.background = val;
+  const hex = document.getElementById('adminBgHex');
+  if(hex) hex.value = val;
+  const picker = document.getElementById('adminBgColor');
+  if(picker) picker.value = val;
+}
+
+function syncBgHex(val){
+  // Validate hex before applying
+  if(/^#[0-9a-fA-F]{6}$/.test(val)){
+    applyMockupBg(val);
+  }
+}
+
+function setPresetBg(val){
+  applyMockupBg(val);
+}
+
+async function saveMockupBg(){
+  const val = document.getElementById('adminBgColor').value;
+  applyMockupBg(val);
+  try{ localStorage.setItem('dtf_mockupBg', val); }catch(e){}
+  try{
+    await db.collection('config').doc('mockupBg').set({color: val});
+    showToast('✅ Fundo salvo!','var(--green)');
   }catch(e){
     showToast('⚠️ Salvo local (sem conexão)','var(--accent2)');
   }
