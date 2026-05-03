@@ -361,11 +361,6 @@ function updateStampBlendMode(){
   // Save for CSS var so new zones pick it up
   document.documentElement.style.setProperty('--stamp-blend', blendMode);
 }
-  img.onload = placeZones;
-  img.src = imgSrc(key);
-  if(img.complete && img.naturalWidth) placeZones();
-  renderViewDots();
-}
 
 function placeZones(){
   const key    = currentViewKey();
