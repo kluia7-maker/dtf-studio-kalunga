@@ -25,7 +25,7 @@
 
 <!-- TABS -->
 <div class="tabs" id="tabsBar">
-  <div class="tab active" onclick="switchTab('config')">🎨 Configurador</div>
+  <div class="tab active" onclick="switchTab('config')">✏️ Crie seu Estilo</div>
   <div class="tab tab-vitrine" onclick="switchTab('vitrine')">🛍️ Vitrine</div>
   <div class="tab tab-admin-only" onclick="switchTab('pedidos')">📋 Pedidos</div>
   <div class="tab tab-admin-only" onclick="switchTab('admin')">⚙️ Admin</div>
@@ -72,7 +72,10 @@
 
 <!-- ══ ORDERS TAB ══ -->
 <div class="orders-wrap" id="tab-pedidos">
-  <h2>Pedidos do Dia</h2>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <h2>Pedidos do Dia</h2>
+    <div id="orderDayTotal" style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--green);letter-spacing:1px"></div>
+  </div>
   <p>Pedidos confirmados — carregados do Firebase.</p>
   <div class="ohist" id="orderHist"><p style="color:var(--muted)">Carregando...</p></div>
 </div>

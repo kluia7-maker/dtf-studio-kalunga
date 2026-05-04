@@ -423,34 +423,34 @@ function placeZones(){
       const col = ZONE_COLORS[z.id]||{fill:'rgba(255,255,255,0.1)',border:'rgba(255,255,255,0.3)'};
       el.style.background = col.fill;
       el.style.border = `1.5px solid ${col.border}`;
-      el.addEventListener('click', e=>{ e.stopPropagation(); openSheet(z.id); });
+      el.addEventListener('click', e=>{
+        e.stopPropagation();
+        // Se as zonas estão visíveis, abre o sheet; senão, só mostra as zonas
+        if(stage.classList.contains('zones-visible')){
+          openSheet(z.id);
+        } else {
+          stage.classList.add('zones-visible');
+        }
+      });
     }
     overlay.appendChild(el);
   });
 
-  // Stage tap — toggle empty zone visibility
-  overlay.addEventListener('click', e=>{
-    if(!e.target.closest('.zone')){
-      stage.classList.remove('zones-visible');
-      document.querySelectorAll('.zone.show-del').forEach(z=>z.classList.remove('show-del'));
-    }
-  });
+  // overlay não deve capturar cliques — as zonas já têm stopPropagation
+  overlay.style.pointerEvents = 'none';
+  // Mas as zonas sim
+  overlay.querySelectorAll('.zone').forEach(z=>{ z.style.pointerEvents='all'; });
 }
 
 // Show zones when tapping the mockup image area
 document.addEventListener('DOMContentLoaded', ()=>{
   const stage = document.getElementById('mockupStage');
   stage.addEventListener('click', e=>{
-    // If clicking directly on stage or image (not on a zone), toggle zone visibility
     if(!e.target.closest('.zone')){
       const hasEmpty = stage.querySelector('.zone.empty-zone');
       if(hasEmpty){
         const isVisible = stage.classList.contains('zones-visible');
-        if(isVisible){
-          stage.classList.remove('zones-visible');
-        } else {
-          stage.classList.add('zones-visible');
-        }
+        stage.classList.toggle('zones-visible', !isVisible);
       }
       document.querySelectorAll('.zone.show-del').forEach(z=>z.classList.remove('show-del'));
     }
@@ -1033,6 +1033,15 @@ function renderOrders(){
   if(!ordersHistory.length){
     h.innerHTML='<p style="color:var(--muted)">Nenhum pedido ainda.</p>'; return;
   }
+
+  // Total do dia
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const totalDia = ordersHistory
+    .filter(o=>new Date(o.datetime).toLocaleDateString('pt-BR')===hoje)
+    .reduce((a,o)=>a+Number(o.total||o.preco||0),0);
+  const totalDiaEl = document.getElementById('orderDayTotal');
+  if(totalDiaEl) totalDiaEl.textContent = 'Total do dia: R$ '+totalDia.toFixed(2).replace('.',',');
+
   h.innerHTML=ordersHistory.map((o,idx)=>{
     const n=Object.keys(o.stamps||{}).length;
     const thumbs=Object.values(o.stamps||{}).map(s=>{
@@ -1057,13 +1066,14 @@ function renderOrders(){
         ${clientInfo}
       </div>
       <div class="ohinfo">
-        <div class="ohgarment">${o.garment==='camiseta'?'👕':'🧥'} ${o.garment}${o.color?' · '+o.color:''} — ${n} estampa(s)</div>
-        <div class="oh-thumbs">${thumbs}</div>
+        <div class="ohgarment">${o.garment==='camiseta'?'👕':'🧥'} ${o.garment||''}${o.color?' · '+o.color:''} — ${n} estampa(s)</div>
+        <div class="oh-thumbs-row">
+          <div class="oh-thumbs">${thumbs}</div>
+          ${o.size?`<div class="oh-size-badge">${o.size}</div>`:''}
+        </div>
       </div>
       <div class="oh-right">
-        <div class="ohtotal">R$${Number(o.total).toFixed(2).replace('.',',')}</div>
-        ${o.size?`<div class="oh-size-badge">${o.size}</div>`:''}
-        <div class="oh-eye">👁</div>
+        <div class="ohtotal">R$${Number(o.total||o.preco||0).toFixed(2).replace('.',',')}</div>
       </div>
     </div>`;
   }).join('');
@@ -1115,10 +1125,87 @@ const ALL_POS=[
   {id:'manga-esq',      label:'Manga Esquerda'},
 ];
 
+// Seleção múltipla de estampas para excluir em lote
+let _stampSelection = {};
+
+function toggleStampSelect(pid, idx, el){
+  if(!_stampSelection[pid]) _stampSelection[pid] = new Set();
+  const s = _stampSelection[pid];
+  if(s.has(idx)){ s.delete(idx); el.classList.remove('arow-selected'); }
+  else { s.add(idx); el.classList.add('arow-selected'); }
+  const total = Object.values(_stampSelection).reduce((a,s)=>a+s.size,0);
+  document.querySelectorAll('.batch-del-btn').forEach(b=>{
+    b.style.display = total>0?'flex':'none';
+    b.textContent = `🗑 Excluir ${total} selecionada(s)`;
+  });
+}
+
+function batchDeleteSelected(){
+  const total = Object.values(_stampSelection).reduce((a,s)=>a+s.size,0);
+  if(!total) return;
+  if(!confirm(`Excluir ${total} estampa(s) selecionada(s)?`)) return;
+  const {openPosIds, stampsOpen} = getAdminAccordionState();
+  for(const [pid, idxSet] of Object.entries(_stampSelection)){
+    const sorted = Array.from(idxSet).sort((a,b)=>b-a);
+    sorted.forEach(i=>{ if(stampsDB[pid]) stampsDB[pid].splice(i,1); });
+  }
+  _stampSelection={};
+  saveDB(); renderAdmin(); restoreAdminAccordionState(openPosIds, stampsOpen);
+  showToast('🗑 Estampas excluídas','var(--green)');
+}
+
+function getAdminAccordionState(){
+  const openPosIds = [];
+  document.querySelectorAll('.pos-accordion-bar.open').forEach(bar=>openPosIds.push(bar.dataset.posId));
+  const stampsOpen = document.getElementById('stampsBody')?.classList.contains('open');
+  const sizesOpen  = document.getElementById('sizesBody')?.classList.contains('open');
+  const bgOpen     = document.getElementById('bgBody')?.classList.contains('open');
+  return {openPosIds, stampsOpen, sizesOpen, bgOpen};
+}
+
+function restoreAdminAccordionState(openPosIds, stampsOpen, sizesOpen, bgOpen){
+  if(stampsOpen){
+    document.getElementById('stampsBody')?.classList.add('open');
+    document.querySelector('[onclick="toggleStampsAccordion(this)"]')?.classList.add('open');
+  }
+  if(sizesOpen){
+    document.getElementById('sizesBody')?.classList.add('open');
+    document.querySelector('[onclick="toggleSizesAccordion(this)"]')?.classList.add('open');
+  }
+  if(bgOpen){
+    document.getElementById('bgBody')?.classList.add('open');
+    document.querySelector('[onclick="toggleBgAccordion(this)"]')?.classList.add('open');
+  }
+  (openPosIds||[]).forEach(p=>{
+    const bar = document.querySelector(`.pos-accordion-bar[data-pos-id="${p}"]`);
+    if(bar){ bar.classList.add('open'); document.getElementById('pos_'+p)?.classList.add('open'); }
+  });
+}
+
+function toggleBgAccordion(bar){
+  bar.classList.toggle('open');
+  document.getElementById('bgBody').classList.toggle('open');
+}
+
+function togglePosAccordion(bar, bodyId){
+  bar.classList.toggle('open');
+  document.getElementById(bodyId)?.classList.toggle('open');
+}
+
+function delStampSingle(pid,idx){
+  if(!confirm('Remover esta estampa?')) return;
+  const state = getAdminAccordionState();
+  stampsDB[pid].splice(idx,1);
+  saveDB(); renderAdmin();
+  restoreAdminAccordionState(state.openPosIds, state.stampsOpen, state.sizesOpen, state.bgOpen);
+  showToast('🗑 Removida');
+}
+
 function renderAdmin(){
   const g=document.getElementById('adminGrid');
+  if(!g) return;
 
-  // ── Sizes section — separated by product ──────────────
+  // ── SANFONA 1: Medidas ────────────────────────────────
   const renderSizeTable=(product,label,dbKey)=>`
     <div style="margin-bottom:14px">
       <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${label}</div>
@@ -1148,114 +1235,103 @@ function renderAdmin(){
 
   const sizesHtml=`<div class="acard" style="grid-column:1/-1;padding:0;overflow:hidden">
     <div class="accordion-bar" onclick="toggleSizesAccordion(this)">
-      <h3>📏 Medidas &amp; 🎨 Plano de Fundo</h3>
+      <h3>📏 Tabela de Medidas</h3>
       <span class="accordion-arrow">▼</span>
     </div>
     <div class="accordion-body" id="sizesBody">
-      <div style="padding:12px 14px 14px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start">
-
-        <!-- Medidas -->
-        <div>
-          <div class="atag" style="margin-bottom:10px">Editável — L = Largura · A = Altura (cm)</div>
-          ${renderSizeTable('camiseta','👕 Camiseta','camiseta')}
-          ${renderSizeTable('moletom','🧥 Moletom','moletom')}
-          <button class="abtn" onclick="saveSizes()" style="width:100%;padding:8px;margin-top:4px">💾 Salvar medidas</button>
-        </div>
-
-        <!-- Fundo do mockup -->
-        <div style="min-width:190px;background:var(--bg);border-radius:10px;padding:14px;border:1px solid var(--border)">
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">🎨 Plano de Fundo</div>
-
-          <!-- Preview swatch -->
-          <div id="adminBgSwatch" style="width:100%;height:60px;border-radius:8px;border:1px solid var(--border);margin-bottom:10px;background:${mockupBg};transition:background .2s;overflow:hidden;position:relative">
-            <div id="adminBgImgPreview" style="position:absolute;inset:0;background-size:cover;background-position:center;display:none"></div>
-          </div>
-
-          <!-- Color picker -->
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-            <input type="color" id="adminBgColor" value="${mockupBg}"
-              style="width:40px;height:30px;border:none;border-radius:6px;cursor:pointer;padding:0;flex-shrink:0"
-              oninput="applyMockupBg(this.value)">
-            <input type="text" id="adminBgHex" value="${mockupBg}"
-              style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;font-family:monospace"
-              oninput="syncBgHex(this.value)" placeholder="#0d2233">
-          </div>
-
-          <!-- WebP upload -->
-          <div style="margin-bottom:10px">
-            <div style="font-size:10px;color:var(--muted);margin-bottom:5px">
-              Imagem de fundo <span style="color:var(--accent2);font-weight:700">(.webp)</span>
-            </div>
-            <label style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1.5px dashed var(--muted2);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .2s"
-              onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
-              onmouseout="this.style.borderColor='var(--muted2)';this.style.color='var(--muted)'">
-              🖼️ Buscar imagem .webp
-              <input type="file" accept=".webp,image/webp" style="display:none" onchange="pickBgImage(this)">
-            </label>
-            <div id="bgImgName" style="font-size:10px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-          </div>
-
-          <!-- Presets -->
-          <div style="font-size:10px;color:var(--muted);margin-bottom:5px">Presets:</div>
-          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">
-            ${[
-              {c:'#0d2233',n:'Petróleo'},{c:'#0e0e0e',n:'Preto'},
-              {c:'#1a1a2e',n:'Noite'},{c:'#1e3a1e',n:'Floresta'},
-              {c:'#2a1a0e',n:'Café'},{c:'#1a0a1e',n:'Roxo'},
-              {c:'#f0f0f0',n:'Branco'},
-            ].map(p=>`<div title="${p.n}" onclick="setPresetBg('${p.c}')"
-              style="width:26px;height:26px;border-radius:5px;background:${p.c};cursor:pointer;border:2px solid var(--border);transition:transform .15s"
-              onmouseover="this.style.transform='scale(1.18)'" onmouseout="this.style.transform='scale(1)'"></div>`).join('')}
-          </div>
-
-          <button class="abtn" onclick="saveMockupBg()" style="width:100%;padding:8px">💾 Salvar fundo</button>
-        </div>
-
+      <div style="padding:12px 14px 14px">
+        <div class="atag" style="margin-bottom:10px">Editável — L = Largura · A = Altura (cm)</div>
+        ${renderSizeTable('camiseta','👕 Camiseta','camiseta')}
+        ${renderSizeTable('moletom','🧥 Moletom','moletom')}
+        <button class="abtn" onclick="saveSizes()" style="padding:8px 20px;margin-top:4px">💾 Salvar medidas</button>
       </div>
     </div>
   </div>`;
 
-  g.innerHTML = sizesHtml + `
-  <div class="acard" style="grid-column:1/-1;padding:0;overflow:hidden">
+  const bgHtml=`<div class="acard" style="grid-column:1/-1;padding:0;overflow:hidden">
+    <div class="accordion-bar" onclick="toggleBgAccordion(this)">
+      <h3>🎨 Plano de Fundo do Mockup</h3>
+      <span class="accordion-arrow">▼</span>
+    </div>
+    <div class="accordion-body" id="bgBody">
+      <div style="padding:12px 14px 14px;max-width:380px">
+        <div id="adminBgSwatch" style="width:100%;height:60px;border-radius:8px;border:1px solid var(--border);margin-bottom:10px;background:${mockupBg};transition:background .2s;overflow:hidden;position:relative">
+          <div id="adminBgImgPreview" style="position:absolute;inset:0;background-size:cover;background-position:center;display:none"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <input type="color" id="adminBgColor" value="${mockupBg}" style="width:40px;height:30px;border:none;border-radius:6px;cursor:pointer;padding:0;flex-shrink:0" oninput="applyMockupBg(this.value)">
+          <input type="text" id="adminBgHex" value="${mockupBg}" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;font-family:monospace" oninput="syncBgHex(this.value)" placeholder="#0d2233">
+        </div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:5px">Imagem de fundo <span style="color:var(--accent2);font-weight:700">(.webp)</span></div>
+          <label style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1.5px dashed var(--muted2);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--muted2)';this.style.color='var(--muted)'">
+            🖼️ Buscar imagem .webp
+            <input type="file" accept=".webp,image/webp" style="display:none" onchange="pickBgImage(this)">
+          </label>
+          <div id="bgImgName" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:5px">Presets:</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">
+          ${[{c:'#0d2233',n:'Petróleo'},{c:'#0e0e0e',n:'Preto'},{c:'#1a1a2e',n:'Noite'},{c:'#1e3a1e',n:'Floresta'},{c:'#2a1a0e',n:'Café'},{c:'#1a0a1e',n:'Roxo'},{c:'#f0f0f0',n:'Branco'}].map(p=>`<div title="${p.n}" onclick="setPresetBg('${p.c}')" style="width:26px;height:26px;border-radius:5px;background:${p.c};cursor:pointer;border:2px solid var(--border);transition:transform .15s" onmouseover="this.style.transform='scale(1.18)'" onmouseout="this.style.transform='scale(1)'"></div>`).join('')}
+        </div>
+        <button class="abtn" onclick="saveMockupBg()" style="padding:8px 20px">💾 Salvar fundo</button>
+      </div>
+    </div>
+  </div>`;
+
+  const stampsHtml=`<div class="acard" style="grid-column:1/-1;padding:0;overflow:hidden">
     <div class="accordion-bar" onclick="toggleStampsAccordion(this)">
       <h3>🖼️ Gerenciar Estampas</h3>
       <span class="accordion-arrow">▼</span>
     </div>
     <div class="accordion-body" id="stampsBody">
       <div style="padding:12px 14px 14px">
-        <div class="atag" style="margin-bottom:12px">Adicione e remova estampas por posição — salvo automaticamente na nuvem</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="atag">Clique para selecionar · botão × para excluir individual</div>
+          <button class="batch-del-btn" onclick="batchDeleteSelected()" style="display:none;align-items:center;gap:6px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;">🗑 Excluir selecionadas</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
           ${ALL_POS.map(pos=>{
             const stamps=stampsDB[pos.id]||[];
             const rows=stamps.map((s,i)=>{
               const th=s.imgUrl
                 ?`<img class="athumb" src="${s.imgUrl}" alt="">`
                 :`<span style="font-size:18px">${s.emoji||'🖼️'}</span>`;
-              return `<div class="arow">${th}
+              return `<div class="arow" data-pid="${pos.id}" data-idx="${i}" onclick="toggleStampSelect('${pos.id}',${i},this)" style="cursor:pointer">
+                <div class="arow-sel-dot"></div>
+                ${th}
                 <span class="acode">${s.code}</span>
                 <span class="aname">${s.name}</span>
                 <span class="aprice">R$${s.price}</span>
-                <button class="adel" onclick="delStamp('${pos.id}',${i})">×</button>
+                <button class="adel" onclick="event.stopPropagation();delStampSingle('${pos.id}',${i})">×</button>
               </div>`;
-            }).join('')||'<div style="color:var(--muted);font-size:11px">Sem estampas</div>';
+            }).join('')||'<div style="color:var(--muted);font-size:11px;padding:6px 0">Sem estampas cadastradas</div>';
 
-            return `<div class="acard">
-              <h3>${pos.label}</h3>
-              <div class="atag">Camiseta &amp; Moletom</div>
-              <div class="alist">${rows}</div>
-              <label class="upload-lbl">
-                📁 Subir imagens em lote
-                <input type="file" accept="image/*" multiple style="display:none" onchange="batchUpload(this,'${pos.id}')">
-              </label>
-              <div class="aform">
-                <label class="aimg-pick" title="Selecionar imagem">
-                  🖼️
-                  <input type="file" accept="image/*" style="display:none" onchange="pickStampImg(this,'${pos.id}')">
-                </label>
-                <div class="aimg-preview" id="apreview_${pos.id}"></div>
-                <input id="an_${pos.id}" placeholder="Nome da estampa" style="flex:2">
-                <input id="ap_${pos.id}" type="number" placeholder="R$" style="max-width:52px">
-                <button class="abtn" onclick="addStamp('${pos.id}')">+</button>
+            return `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface)">
+              <div class="pos-accordion-bar accordion-bar" data-pos-id="${pos.id}" onclick="togglePosAccordion(this,'pos_${pos.id}')" style="padding:9px 12px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <h3 style="margin:0;font-size:12px">${pos.label}</h3>
+                  <span style="font-size:10px;color:var(--muted);background:var(--surface3);padding:2px 7px;border-radius:20px">${stamps.length}</span>
+                </div>
+                <span class="accordion-arrow">▼</span>
+              </div>
+              <div class="accordion-body" id="pos_${pos.id}">
+                <div style="padding:10px 12px;background:var(--surface2)">
+                  <div class="alist">${rows}</div>
+                  <label class="upload-lbl" style="margin-top:8px">
+                    📁 Subir imagens em lote
+                    <input type="file" accept="image/*" multiple style="display:none" onchange="batchUpload(this,'${pos.id}')">
+                  </label>
+                  <div class="aform">
+                    <label class="aimg-pick" title="Selecionar imagem">🖼️
+                      <input type="file" accept="image/*" style="display:none" onchange="pickStampImg(this,'${pos.id}')">
+                    </label>
+                    <div class="aimg-preview" id="apreview_${pos.id}"></div>
+                    <input id="an_${pos.id}" placeholder="Nome da estampa" style="flex:2">
+                    <input id="ap_${pos.id}" type="number" placeholder="R$" style="max-width:52px">
+                    <button class="abtn" onclick="addStamp('${pos.id}')">+</button>
+                  </div>
+                </div>
               </div>
             </div>`;
           }).join('')}
@@ -1263,6 +1339,8 @@ function renderAdmin(){
       </div>
     </div>
   </div>`;
+
+  g.innerHTML = sizesHtml + bgHtml + stampsHtml;
   renderAdminVitrine(g);
 }
 function updateSize(product, idx, field, val){
@@ -1315,12 +1393,17 @@ function batchUpload(input,pid){
   const price=parseFloat(priceStr);
   if(isNaN(price)){showToast('❌ Preço inválido');return;}
   if(!stampsDB[pid]) stampsDB[pid]=[];
+  const state = getAdminAccordionState();
   let done=0;
   files.forEach(file=>{
     const rawName=file.name.replace(/\.[^.]+$/,'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
     resizeImg(file,imgUrl=>{
       stampsDB[pid].push({code:autoCode(pid),name:rawName,price,emoji:'🖼️',imgUrl});
-      if(++done===files.length){saveDB();renderAdmin();showToast(`✅ ${files.length} estampa(s) adicionada(s)!`,'var(--green)');}
+      if(++done===files.length){
+        saveDB(); renderAdmin();
+        restoreAdminAccordionState(state.openPosIds, state.stampsOpen, state.sizesOpen, state.bgOpen);
+        showToast(`✅ ${files.length} estampa(s) adicionada(s)!`,'var(--green)');
+      }
     });
   });
   input.value='';
@@ -1336,23 +1419,26 @@ function pickStampImg(input, pid){
 }
 
 function addStamp(pid){
-  const name=document.getElementById('an_'+pid).value.trim();
-  const price=parseFloat(document.getElementById('ap_'+pid).value);
+  const nameEl = document.getElementById('an_'+pid);
+  const priceEl = document.getElementById('ap_'+pid);
+  const name  = nameEl?.value.trim();
+  const price = parseFloat(priceEl?.value);
   if(!name||isNaN(price)){showToast('❌ Preencha nome e preço!');return;}
   if(!stampsDB[pid]) stampsDB[pid]=[];
   const code = autoCode(pid);
   const stamp={code,name,price,emoji:'🖼️'};
   if(_pendingImgs[pid]){stamp.imgUrl=_pendingImgs[pid];delete _pendingImgs[pid];}
   stampsDB[pid].push(stamp);
-  ['an','ap'].forEach(f=>{const el=document.getElementById(f+'_'+pid);if(el)el.value='';});
-  const prev=document.getElementById('apreview_'+pid);
-  if(prev) prev.innerHTML='';
-  saveDB();renderAdmin();showToast('✅ Estampa adicionada!','var(--green)');
+  const state = getAdminAccordionState();
+  saveDB();
+  renderAdmin();
+  restoreAdminAccordionState(state.openPosIds, state.stampsOpen, state.sizesOpen, state.bgOpen);
+  showToast('✅ Estampa adicionada!','var(--green)');
 }
 
 function delStamp(pid,idx){
-  if(!confirm('Remover esta estampa?')) return;
-  stampsDB[pid].splice(idx,1);saveDB();renderAdmin();showToast('🗑 Removida');
+  // Alias para compatibilidade — usa delStampSingle
+  delStampSingle(pid,idx);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1475,6 +1561,7 @@ function checkAdminPwd(){
 function switchTab(t){
   const names=['config','vitrine','pedidos','admin'];
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',names[i]===t));
+
   document.getElementById('tab-config').style.display    = t==='config'?'flex':'none';
   document.getElementById('tab-vitrine').classList.toggle('active', t==='vitrine');
   document.getElementById('tab-pedidos').classList.toggle('active', t==='pedidos');
@@ -1725,12 +1812,68 @@ function toggleCampAccordion(bar){
 }
 
 function openNewCamp(){
-  const nome = prompt('Nome da campanha (ex: Maio Amarelo):');
-  if(!nome) return;
-  const inicio = prompt('Data início (AAAA-MM-DD):');
-  const fim    = prompt('Data fim (AAAA-MM-DD):');
-  const texto  = prompt('Texto do popup (ex: Novidades da Semana):') || nome;
-  createCamp(nome, inicio, fim, texto);
+  // Cria popup inline se ainda não existe
+  let popup = document.getElementById('newCampPopup');
+  if(!popup){
+    popup = document.createElement('div');
+    popup.id = 'newCampPopup';
+    popup.style.cssText = 'position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);padding:16px;';
+    const today = new Date().toISOString().split('T')[0];
+    popup.innerHTML = `
+      <div style="background:var(--surface);border-radius:18px;border:1px solid var(--border);width:100%;max-width:420px;padding:22px;animation:su .2s ease">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;margin-bottom:4px">🛍️ Nova Campanha</div>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:18px">Preencha os dados da campanha</p>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+          <div>
+            <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nome da Campanha *</label>
+            <input id="nc_nome" type="text" placeholder="Ex: Maio Amarelo, Geek Week..."
+              style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">📅 Data Início</label>
+              <input id="nc_inicio" type="date" value="${today}"
+                style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+            </div>
+            <div>
+              <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">📅 Data Fim</label>
+              <input id="nc_fim" type="date" value="${today}"
+                style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+            </div>
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Texto do Popup (opcional)</label>
+            <input id="nc_texto" type="text" placeholder="Ex: Novidades da Semana"
+              style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button onclick="closeNewCampPopup()" style="flex:1;background:none;border:1.5px solid var(--border);color:var(--text);border-radius:50px;padding:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">Cancelar</button>
+          <button onclick="submitNewCamp()" style="flex:2;background:var(--green);color:#fff;border:none;border-radius:50px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">✅ Criar Campanha</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(popup);
+    popup.addEventListener('click', e=>{ if(e.target===popup) closeNewCampPopup(); });
+  } else {
+    popup.style.display='flex';
+  }
+  setTimeout(()=>document.getElementById('nc_nome')?.focus(), 100);
+}
+
+function closeNewCampPopup(){
+  const popup = document.getElementById('newCampPopup');
+  if(popup) popup.style.display='none';
+}
+
+async function submitNewCamp(){
+  const nome   = document.getElementById('nc_nome')?.value.trim();
+  const inicio = document.getElementById('nc_inicio')?.value;
+  const fim    = document.getElementById('nc_fim')?.value;
+  const texto  = document.getElementById('nc_texto')?.value.trim() || nome;
+  if(!nome){ showToast('❌ Informe o nome da campanha'); return; }
+  closeNewCampPopup();
+  await createCamp(nome, inicio, fim, texto);
 }
 
 async function createCamp(nome, dataInicio, dataFim, textoPop){

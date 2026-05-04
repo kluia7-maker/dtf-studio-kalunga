@@ -629,6 +629,30 @@ header{
 .ohcard:hover .oh-del{opacity:1;pointer-events:all}
 .oh-del:hover{background:#e53935}
 
+/* Seleção múltipla de estampas */
+.arow-sel-dot{
+  width:14px;height:14px;border-radius:50%;
+  border:2px solid var(--muted2);flex-shrink:0;
+  transition:all .15s;background:transparent;
+}
+.arow-selected{
+  background:rgba(255,69,0,0.12) !important;
+  border:1.5px solid var(--accent) !important;
+}
+.arow-selected .arow-sel-dot{
+  background:var(--accent);border-color:var(--accent);
+}
+
+/* Thumbs + tamanho na mesma linha — aba Pedidos */
+.oh-thumbs-row{
+  display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;
+}
+.oh-thumbs-row .oh-size-badge{
+  background:var(--accent);color:#fff;
+  font-family:'Bebas Neue',sans-serif;font-size:13px;
+  letter-spacing:1px;padding:2px 8px;border-radius:20px;flex-shrink:0;
+}
+
 /* ═══════════════════════════════════════════════
    ADMIN TAB
 ═══════════════════════════════════════════════ */
