@@ -336,12 +336,30 @@ function currentViewKey(){ return garment+'-'+VIEWS[viewIdx].key; }
 function renderMockup(){
   const key = currentViewKey();
   const img = document.getElementById('mockupImg');
-  // Apply background color
-  document.getElementById('mockupStage').style.background = mockupBg;
+  const stage = document.getElementById('mockupStage');
+  // Apply background
+  stage.style.background = mockupBg;
+  if(mockupBgImg){
+    stage.style.backgroundImage = `url(${mockupBgImg})`;
+    stage.style.backgroundSize = 'cover';
+    stage.style.backgroundPosition = 'center';
+  }
+  // Item 3 — Blend mode dinâmico por cor da camiseta
+  updateStampBlendMode();
   img.onload = placeZones;
   img.src = imgSrc(key);
   if(img.complete && img.naturalWidth) placeZones();
   renderViewDots();
+}
+
+// Blend mode: multiply para claro, screen para preto
+function updateStampBlendMode(){
+  const blendMode = color === 'preto' ? 'screen' : 'multiply';
+  document.querySelectorAll('.zone-stamp-img').forEach(el=>{
+    el.style.mixBlendMode = blendMode;
+  });
+  // Save for CSS var so new zones pick it up
+  document.documentElement.style.setProperty('--stamp-blend', blendMode);
 }
 
 function placeZones(){
@@ -380,6 +398,8 @@ function placeZones(){
       if(s.imgUrl){
         const si = document.createElement('img');
         si.src = s.imgUrl; si.className = 'zone-stamp-img';
+        // Item 3 — blend mode dinâmico
+        si.style.mixBlendMode = color === 'preto' ? 'screen' : 'multiply';
         el.appendChild(si);
       } else {
         const sp = document.createElement('div');
@@ -403,34 +423,31 @@ function placeZones(){
       const col = ZONE_COLORS[z.id]||{fill:'rgba(255,255,255,0.1)',border:'rgba(255,255,255,0.3)'};
       el.style.background = col.fill;
       el.style.border = `1.5px solid ${col.border}`;
-      el.addEventListener('click', e=>{ e.stopPropagation(); openSheet(z.id); });
+      el.addEventListener('click', e=>{
+        e.stopPropagation();
+        if(stage.classList.contains('zones-visible')){
+          openSheet(z.id);
+        } else {
+          stage.classList.add('zones-visible');
+        }
+      });
     }
     overlay.appendChild(el);
   });
 
-  // Stage tap — toggle empty zone visibility
-  overlay.addEventListener('click', e=>{
-    if(!e.target.closest('.zone')){
-      stage.classList.remove('zones-visible');
-      document.querySelectorAll('.zone.show-del').forEach(z=>z.classList.remove('show-del'));
-    }
-  });
-}
+  // overlay não deve capturar cliques — as zonas já têm stopPropagation
+  overlay.style.pointerEvents = 'none';
+  }
 
 // Show zones when tapping the mockup image area
 document.addEventListener('DOMContentLoaded', ()=>{
   const stage = document.getElementById('mockupStage');
   stage.addEventListener('click', e=>{
-    // If clicking directly on stage or image (not on a zone), toggle zone visibility
     if(!e.target.closest('.zone')){
       const hasEmpty = stage.querySelector('.zone.empty-zone');
       if(hasEmpty){
         const isVisible = stage.classList.contains('zones-visible');
-        if(isVisible){
-          stage.classList.remove('zones-visible');
-        } else {
-          stage.classList.add('zones-visible');
-        }
+        stage.classList.toggle('zones-visible', !isVisible);
       }
       document.querySelectorAll('.zone.show-del').forEach(z=>z.classList.remove('show-del'));
     }
@@ -449,6 +466,11 @@ function toggleSizesAccordion(bar){
   body.classList.toggle('open');
 }
 
+function toggleStampsAccordion(bar){
+  bar.classList.toggle('open');
+  const body = document.getElementById('stampsBody');
+  body.classList.toggle('open');
+}
 // ══════════════════════════════════════════════════════
 // VIEW NAVIGATION
 // ══════════════════════════════════════════════════════
