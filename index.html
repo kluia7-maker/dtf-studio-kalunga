@@ -13,7 +13,7 @@
 
 <!-- HEADER -->
 <header>
-  <div class="logo">DTF<span>Studio</span></div>
+  <div class="logo" id="logoBtn">DTF<span>Studio</span></div>
   <div class="header-right">
     <div class="sync-dot" id="syncDot" title="Status sync"></div>
     <div class="cart-btn" id="cartBtn" onclick="openModal()">
@@ -24,16 +24,15 @@
 </header>
 
 <!-- TABS -->
-<div class="tabs">
+<div class="tabs" id="tabsBar">
   <div class="tab active" onclick="switchTab('config')">🎨 Configurador</div>
-  <div class="tab" onclick="switchTab('pedidos')">📋 Pedidos</div>
-  <div class="tab" onclick="switchTab('admin')">⚙️ Estampas</div>
+  <div class="tab tab-vitrine" onclick="switchTab('vitrine')">🛍️ Vitrine</div>
+  <div class="tab tab-admin-only" onclick="switchTab('pedidos')">📋 Pedidos</div>
+  <div class="tab tab-admin-only" onclick="switchTab('admin')">⚙️ Admin</div>
 </div>
 
 <!-- ══ CONFIGURATOR TAB ══ -->
 <div id="tab-config">
-
-  <!-- Garment + Color selector -->
   <div class="garment-bar">
     <div class="gbtn active" onclick="setGarment('camiseta',this)">👕 Camiseta</div>
     <div class="gbtn" onclick="setGarment('moletom',this)">🧥 Moletom</div>
@@ -48,19 +47,26 @@
       <span class="cbtn-dot" style="background:#888;border:1.5px solid #666"></span>
     </button>
   </div>
-
-  <!-- Mockup stage -->
   <div class="mockup-stage" id="mockupStage">
     <img class="mockup-img" id="mockupImg" src="" alt="mockup" draggable="false">
     <div class="mockup-overlay" id="mockupOverlay"></div>
-
     <button class="view-arrow-left"  onclick="navigateView(-1)">&#8592;</button>
     <button class="view-arrow-right" onclick="navigateView(1)">&#8594;</button>
-
     <div class="view-nav-center">
       <div class="view-name" id="viewName">Frente</div>
       <div class="view-dots" id="viewDots"></div>
     </div>
+  </div>
+</div>
+
+<!-- ══ VITRINE TAB ══ -->
+<div class="vitrine-wrap" id="tab-vitrine">
+  <div class="vitrine-header">
+    <h2 id="vitrineTitle">🛍️ Vitrine</h2>
+    <p id="vitrineSubtitle">Edições limitadas — garanta a sua!</p>
+  </div>
+  <div class="vitrine-grid" id="vitrineGrid">
+    <div style="color:var(--muted);text-align:center;padding:40px">Carregando vitrine...</div>
   </div>
 </div>
 
@@ -114,28 +120,85 @@
   </div>
 </div>
 
+<!-- ══ POPUP VITRINE ══ -->
+<div class="vt-popup-backdrop" id="vtPopupBackdrop" onclick="closeVitrinePopup()"></div>
+<div class="vt-popup" id="vtPopup">
+  <button class="vt-popup-close" onclick="closeVitrinePopup()">×</button>
+  <div class="vt-popup-img-wrap">
+    <img id="vtPopupImg" src="" alt="">
+    <div class="vt-popup-badge">🔥 Edição Limitada</div>
+  </div>
+  <div class="vt-popup-body">
+    <div class="vt-popup-camp" id="vtPopupCampTitle">Novidades da Semana</div>
+    <div class="vt-popup-stock" id="vtPopupStock"></div>
+    <div class="vt-popup-price" id="vtPopupPrice"></div>
+    <button class="vt-popup-btn" onclick="closeVitrinePopup(); switchTab('vitrine')">
+      Ver Coleção Completa →
+    </button>
+  </div>
+</div>
+
+<!-- ══ VITRINE ORDER MODAL ══ -->
+<div class="overlay" id="vitrineOrderOverlay">
+  <div class="modal">
+    <div class="modal-title">🛍️ Finalizar Compra</div>
+    <p class="modal-sub">Confirme seu pedido.</p>
+    <div id="vtOrderItem" style="margin-bottom:16px"></div>
+    <div class="size-row">
+      <div class="size-row-top">
+        <span class="size-row-label">Tamanho</span>
+        <button class="size-guide-link" onclick="openSizeGuide()">📏 Ver medidas</button>
+      </div>
+      <div class="size-btns" id="vtSizeBtns"></div>
+    </div>
+    <div class="client-fields">
+      <div>
+        <label for="vtClientName">Seu nome</label>
+        <input id="vtClientName" type="text" placeholder="Ex: João Silva" autocomplete="off">
+      </div>
+      <div>
+        <label for="vtClientPhone">WhatsApp (com DDD)</label>
+        <input id="vtClientPhone" type="tel" placeholder="Ex: 11999999999" autocomplete="off">
+      </div>
+    </div>
+    <div class="modal-acts">
+      <button class="btn-s" onclick="closeVitrineOrder()">Fechar</button>
+      <button class="btn-whatsapp" onclick="confirmVitrineOrder()">✅ Confirmar e enviar WhatsApp</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADMIN LOGIN MODAL ══ -->
+<div class="overlay" id="adminLoginOverlay">
+  <div class="modal" style="max-width:320px;text-align:center">
+    <div class="modal-title">🔐 Acesso Admin</div>
+    <p class="modal-sub">Digite a senha para continuar.</p>
+    <input id="adminPwdInput" type="password" placeholder="Senha"
+      style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-size:16px;text-align:center;margin-bottom:12px;font-family:'DM Sans',sans-serif;outline:none"
+      onkeydown="if(event.key==='Enter')checkAdminPwd()">
+    <div class="modal-acts">
+      <button class="btn-s" onclick="closeAdminLogin()">Cancelar</button>
+      <button class="btn-fin" onclick="checkAdminPwd()">Entrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ ORDER MODAL ══ -->
 <div class="overlay" id="overlay">
   <div class="modal">
     <div class="modal-title">✅ Resumo do Pedido</div>
     <p class="modal-sub">Preencha os dados e confirme.</p>
-
     <div class="code-box">
       <div class="code-lbl">Código do Pedido</div>
       <div class="code-val" id="mCode">—</div>
       <div class="code-dt" id="mDt">—</div>
     </div>
-
     <div id="mGarment" style="display:inline-flex;align-items:center;gap:8px;background:var(--surface2);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;margin-bottom:16px"></div>
-
     <div class="oi-grid" id="mItems"></div>
-
     <div class="order-total">
       <span class="ot-lbl">Total</span>
       <span class="ot-val" id="mTotal">R$ 0,00</span>
     </div>
-
-    <!-- Tamanho -->
     <div class="size-row">
       <div class="size-row-top">
         <span class="size-row-label">Tamanho da peça</span>
@@ -143,8 +206,6 @@
       </div>
       <div class="size-btns" id="sizeBtns"></div>
     </div>
-
-    <!-- Dados do cliente -->
     <div class="client-fields">
       <div>
         <label for="clientName">Seu nome</label>
@@ -155,12 +216,9 @@
         <input id="clientPhone" type="tel" placeholder="Ex: 11999999999" autocomplete="off">
       </div>
     </div>
-
     <div class="modal-acts">
       <button class="btn-s" onclick="closeModal()">Fechar</button>
-      <button class="btn-whatsapp" onclick="confirmOrder()">
-        ✅ Confirmar e enviar WhatsApp
-      </button>
+      <button class="btn-whatsapp" onclick="confirmOrder()">✅ Confirmar e enviar WhatsApp</button>
     </div>
   </div>
 </div>

@@ -397,6 +397,36 @@ header{
 .btn-fin:hover{background:#ff6520}
 
 /* ═══════════════════════════════════════════════
+   UPSELL BANNER
+═══════════════════════════════════════════════ */
+.upsell-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:49;
+  transform:translateY(100%);
+  transition:transform .32s cubic-bezier(.32,.72,0,1), bottom .28s cubic-bezier(.32,.72,0,1);
+  background:linear-gradient(135deg,#1a0a00 0%,#1f1100 100%);
+  border-top:1.5px solid rgba(255,170,0,0.35);
+  padding:10px 14px;display:flex;align-items:center;gap:10px;
+}
+.upsell-bar.visible{transform:translateY(0)}
+.upsell-bar.with-bar{bottom:62px}
+.upsell-fire{font-size:22px;flex-shrink:0;line-height:1}
+.upsell-text{flex:1;min-width:0}
+.upsell-title{font-size:12px;font-weight:700;color:#ffcc55;line-height:1.3;}
+.upsell-sub{font-size:11px;color:rgba(255,200,80,0.65);margin-top:1px;}
+.upsell-btn{
+  flex-shrink:0;background:var(--accent2);color:#000;border:none;
+  border-radius:50px;padding:8px 14px;font-size:12px;font-weight:800;
+  cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .18s;white-space:nowrap;
+}
+.upsell-btn:hover{background:#ffc200;transform:scale(1.04)}
+.upsell-close{
+  flex-shrink:0;background:none;border:none;
+  color:rgba(255,200,80,0.4);font-size:18px;cursor:pointer;
+  padding:2px 6px;line-height:1;transition:color .15s;
+}
+.upsell-close:hover{color:rgba(255,200,80,0.9)}
+
+/* ═══════════════════════════════════════════════
    MODAL — ORDER SUMMARY
 ═══════════════════════════════════════════════ */
 .overlay{
@@ -682,6 +712,125 @@ header{
   z-index:500;opacity:0;transition:all .28s;pointer-events:none;white-space:nowrap;
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ═══════════════════════════════════════════════
+   VITRINE TAB
+═══════════════════════════════════════════════ */
+.vitrine-wrap{display:none;flex:1;overflow-y:auto;padding:16px}
+.vitrine-wrap.active{display:block}
+.vitrine-header{margin-bottom:16px}
+.vitrine-header h2{
+  font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;margin-bottom:4px;
+}
+.vitrine-header p{font-size:12px;color:var(--muted)}
+.vitrine-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:12px;
+}
+.vt-card{
+  background:var(--surface);border-radius:var(--r);
+  border:1.5px solid var(--border);
+  overflow:hidden;cursor:pointer;
+  transition:all .2s;position:relative;
+}
+.vt-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.vt-card.esgotado{opacity:.6;cursor:not-allowed}
+.vt-card-img{
+  width:100%;aspect-ratio:1;
+  background:#111;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+}
+.vt-card-img img{width:100%;height:100%;object-fit:cover;display:block}
+.vt-card-body{padding:8px 10px}
+.vt-card-price{
+  font-family:'Bebas Neue',sans-serif;font-size:20px;
+  color:var(--accent);letter-spacing:1px;
+}
+.vt-card-stock{
+  font-size:10px;font-weight:700;
+  color:var(--accent2);margin-top:2px;
+}
+.vt-card-stock.low{color:#e53935}
+.vt-badge-esgotado{
+  position:absolute;top:8px;right:8px;
+  background:#e53935;color:#fff;
+  font-size:9px;font-weight:700;
+  padding:3px 8px;border-radius:20px;
+  letter-spacing:.5px;
+}
+.vt-btn{
+  width:100%;background:var(--accent);color:#fff;border:none;
+  border-radius:8px;padding:8px;margin-top:8px;
+  font-size:12px;font-weight:700;cursor:pointer;
+  font-family:'DM Sans',sans-serif;transition:all .2s;
+}
+.vt-btn:hover{background:#ff6520}
+.vt-btn:disabled{background:var(--muted2);cursor:not-allowed}
+
+/* ══ POPUP VITRINE ══ */
+.vt-popup-backdrop{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.75);z-index:400;
+  backdrop-filter:blur(4px);
+}
+.vt-popup-backdrop.open{display:block}
+.vt-popup{
+  display:none;position:fixed;
+  bottom:0;left:0;right:0;
+  z-index:401;
+  background:var(--surface);
+  border-radius:20px 20px 0 0;
+  border-top:1px solid var(--border);
+  padding:0 0 24px;
+  max-height:85dvh;overflow-y:auto;
+  animation:slideUp .35s cubic-bezier(.32,.72,0,1);
+}
+.vt-popup.open{display:block}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.vt-popup-close{
+  position:absolute;top:12px;right:14px;
+  background:var(--surface2);border:none;color:var(--muted);
+  border-radius:50%;width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;cursor:pointer;z-index:5;
+}
+.vt-popup-img-wrap{
+  position:relative;width:100%;
+  background:#111;line-height:0;
+}
+.vt-popup-img-wrap img{
+  width:100%;max-height:50dvh;object-fit:contain;display:block;
+}
+.vt-popup-badge{
+  position:absolute;bottom:10px;left:12px;
+  background:var(--accent);color:#fff;
+  font-size:11px;font-weight:700;
+  padding:4px 10px;border-radius:20px;
+}
+.vt-popup-body{padding:16px 18px 0}
+.vt-popup-camp{
+  font-size:11px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;
+}
+.vt-popup-stock{
+  font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:6px;
+}
+.vt-popup-price{
+  font-family:'Bebas Neue',sans-serif;font-size:32px;
+  color:var(--accent);letter-spacing:2px;margin-bottom:14px;
+}
+.vt-popup-btn{
+  width:100%;background:var(--green);color:#000;border:none;
+  border-radius:50px;padding:14px;
+  font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;
+  cursor:pointer;transition:all .2s;
+}
+.vt-popup-btn:hover{background:#00b88a}
+
+/* ══ ADMIN MODE — hide admin tabs ══ */
+.tab-admin-only{display:none}
+body.admin-mode .tab-admin-only{display:flex}
 
 /* ═══════════════════════════════════════════════
    SCROLLBAR

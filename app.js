@@ -435,25 +435,6 @@ function placeZones(){
       document.querySelectorAll('.zone.show-del').forEach(z=>z.classList.remove('show-del'));
     }
   });
-
-  // Overlay do cordão do moletom — por cima de tudo, com sombra
-  if(garment === 'moletom' && key.includes('frente')){
-    const cordaoFile = color === 'preto' ? 'CORDAO_PRETO.webp' : 'CORDAO_BRANCO.webp';
-    const cordaoUrl = `${STORAGE_BASE}/mockups%2F${cordaoFile}?alt=media`;
-    const cordaoEl = document.createElement('img');
-    cordaoEl.src = cordaoUrl;
-    cordaoEl.style.cssText = [
-      'position:absolute',
-      'inset:0',
-      'width:100%',
-      'height:100%',
-      'object-fit:contain',
-      'pointer-events:none',
-      'z-index:20',
-      'filter:drop-shadow(0 12px 40px rgba(0,0,0,0.75)) drop-shadow(0 4px 12px rgba(0,0,0,0.55))',
-    ].join(';');
-    overlay.appendChild(cordaoEl);
-  }
 }
 
 // Show zones when tapping the mockup image area
@@ -541,6 +522,7 @@ function setColor(c, btn){
 // CATALOG SHEET
 // ══════════════════════════════════════════════════════
 function openSheet(posId){
+  dismissUpsell();
   activePosId = posId;
   hoverStamp  = selected[posId]||null;
 
@@ -576,23 +558,10 @@ function openSheet(posId){
       </div>
       ${isSel?'<div class="scard-badge">✓</div>':''}
     `;
-    const doPreview=()=>{
-      // Só faz preview no hover se ainda não há estampa selecionada para esta posição
-      if(!selected[posId]){
-        hoverStamp=s; renderMiniZones(s); updatePreviewInfo(s);
-      }
-    };
+    const doPreview=()=>{ hoverStamp=s; renderMiniZones(s); updatePreviewInfo(s); };
     c.addEventListener('mouseenter', doPreview);
     c.addEventListener('touchstart',  doPreview, {passive:true});
-    c.addEventListener('click', ()=>{
-      hoverStamp=s;
-      renderMiniZones(s);
-      updatePreviewInfo(s);
-      updateConfirmBtn();
-      // Marca visualmente o card clicado
-      grid.querySelectorAll('.scard').forEach(sc=>sc.classList.remove('sel'));
-      c.classList.add('sel');
-    });
+    c.addEventListener('click', ()=>{ hoverStamp=s; renderMiniZones(s); updatePreviewInfo(s); updateConfirmBtn(); });
     grid.appendChild(c);
   });
 
@@ -630,11 +599,13 @@ function confirmStamp(){
   updateCart();
   renderViewDots();
   showToast('✅ '+hoverStamp.name+' aplicada!','var(--green)');
+  setTimeout(()=>triggerUpsell(posId), 420);
 }
 
 function removeStamp(id){
   delete selected[id];
   renderMockup(); updateCart(); renderViewDots();
+  if(!Object.keys(selected).length) dismissUpsell();
 }
 
 // ── Mini mockup zone overlay ──────────────────────────
@@ -679,6 +650,64 @@ function renderMiniZones(previewStamp){
 }
 
 // ══════════════════════════════════════════════════════
+// UPSELL
+// ══════════════════════════════════════════════════════
+const UPSELL_MAP={
+  'peito-grande':   'costas-grande',
+  'peito-central':  'costas-central',
+  'peito-esq':      'manga-esq',
+  'peito-dir':      'manga-dir',
+  'costas-grande':  'peito-grande',
+  'costas-central': 'peito-central',
+  'manga-dir':      'manga-esq',
+  'manga-esq':      'manga-dir',
+};
+const POS_VIEW_IDX={
+  'peito-grande':0,'peito-central':0,'peito-esq':0,'peito-dir':0,
+  'costas-grande':2,'costas-central':2,
+  'manga-dir':1,'manga-esq':3,
+};
+let _upsellTimer=null, _upsellTarget=null, _upsellDismissed=false;
+
+function triggerUpsell(justChosenPosId){
+  const suggest=UPSELL_MAP[justChosenPosId];
+  if(!suggest||selected[suggest]||_upsellDismissed) return;
+  _upsellTarget=suggest;
+  const meta=POS_META[suggest]||{label:suggest};
+  const stamps=stampsDB[suggest]||[];
+  const minPrice=stamps.length?Math.min(...stamps.map(s=>s.price)):null;
+  const priceStr=minPrice!=null?' — a partir de R$ '+minPrice.toFixed(2).replace('.',','):'';
+  document.getElementById('upsellTitle').textContent='Fica ainda melhor com '+meta.label+' 🔥';
+  document.getElementById('upsellSub').textContent='Adicionar'+priceStr;
+  document.getElementById('upsellBtn').onclick=acceptUpsell;
+  const bar=document.getElementById('upsellBar');
+  bar.classList.toggle('with-bar', Object.keys(selected).length>0);
+  bar.classList.add('visible');
+  clearTimeout(_upsellTimer);
+  _upsellTimer=setTimeout(dismissUpsell, 8000);
+}
+
+function dismissUpsell(){
+  clearTimeout(_upsellTimer);
+  document.getElementById('upsellBar').classList.remove('visible');
+  _upsellTarget=null;
+}
+
+function acceptUpsell(){
+  if(!_upsellTarget) return;
+  const posId=_upsellTarget;
+  dismissUpsell();
+  const targetViewIdx=POS_VIEW_IDX[posId]??0;
+  if(viewIdx!==targetViewIdx){
+    viewIdx=targetViewIdx;
+    const stage=document.getElementById('mockupStage');
+    stage.style.opacity='0'; stage.style.transition='opacity .15s';
+    setTimeout(()=>{ renderMockup(); stage.style.opacity='1';
+      setTimeout(()=>openSheet(posId),120); },150);
+  } else { openSheet(posId); }
+}
+
+// ══════════════════════════════════════════════════════
 // CART / ACTION BAR
 // ══════════════════════════════════════════════════════
 function updateCart(){
@@ -697,6 +726,8 @@ function updateCart(){
   const bar = document.getElementById('actionBar');
   bar.classList.toggle('visible', n>0);
   document.getElementById('actionTotal').textContent = fmt(t);
+
+  document.getElementById('upsellBar').classList.toggle('with-bar', n>0);
 }
 
 // ══════════════════════════════════════════════════════
@@ -704,6 +735,8 @@ function updateCart(){
 // ══════════════════════════════════════════════════════
 function resetOrder(){
   selected={};
+  _upsellDismissed=false;
+  dismissUpsell();
   renderMockup(); updateCart(); renderViewDots();
   showToast('🗑 Pedido limpo');
 }
@@ -1230,6 +1263,7 @@ function renderAdmin(){
       </div>
     </div>
   </div>`;
+  renderAdminVitrine(g);
 }
 function updateSize(product, idx, field, val){
   if(!sizesDB[product]) return;
@@ -1383,19 +1417,352 @@ async function saveMockupBg(){
 }
 
 // ══════════════════════════════════════════════════════
+// ADMIN MODE — acesso via 5 cliques no logo
+// ══════════════════════════════════════════════════════
+const ADMIN_PASSWORD = 'dtf2025'; // altere aqui sua senha
+let isAdminMode = false;
+let logoClickCount = 0;
+let logoClickTimer = null;
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  const logo = document.getElementById('logoBtn');
+  if(logo){
+    logo.addEventListener('click', ()=>{
+      logoClickCount++;
+      clearTimeout(logoClickTimer);
+      logoClickTimer = setTimeout(()=>{ logoClickCount=0; }, 2000);
+      if(logoClickCount >= 5){
+        logoClickCount=0;
+        if(isAdminMode){
+          // Sair do modo admin
+          isAdminMode=false;
+          document.body.classList.remove('admin-mode');
+          switchTab('config');
+          showToast('👤 Modo cliente ativado');
+        } else {
+          // Entrar — pede senha
+          openAdminLogin();
+        }
+      }
+    });
+  }
+});
+
+function openAdminLogin(){
+  document.getElementById('adminLoginOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('adminPwdInput').focus(), 100);
+}
+function closeAdminLogin(){
+  document.getElementById('adminLoginOverlay').classList.remove('open');
+  document.getElementById('adminPwdInput').value='';
+}
+function checkAdminPwd(){
+  const pwd = document.getElementById('adminPwdInput').value;
+  if(pwd === ADMIN_PASSWORD){
+    isAdminMode=true;
+    document.body.classList.add('admin-mode');
+    closeAdminLogin();
+    showToast('🔐 Modo admin ativado','var(--green)');
+  } else {
+    showToast('❌ Senha incorreta','var(--accent)');
+    document.getElementById('adminPwdInput').value='';
+  }
+}
+
+// ══════════════════════════════════════════════════════
 // TABS
 // ══════════════════════════════════════════════════════
 function switchTab(t){
-  const names=['config','pedidos','admin'];
+  const names=['config','vitrine','pedidos','admin'];
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',names[i]===t));
-  document.getElementById('tab-config').style.display   = t==='config'?'flex':'none';
-  document.getElementById('tab-pedidos').classList.toggle('active',t==='pedidos');
-  document.getElementById('tab-admin').classList.toggle('active',  t==='admin');
+  document.getElementById('tab-config').style.display    = t==='config'?'flex':'none';
+  document.getElementById('tab-vitrine').classList.toggle('active', t==='vitrine');
+  document.getElementById('tab-pedidos').classList.toggle('active', t==='pedidos');
+  document.getElementById('tab-admin').classList.toggle('active',   t==='admin');
   const bar=document.getElementById('actionBar');
   if(t!=='config') bar.classList.remove('visible');
   else if(Object.keys(selected).length) bar.classList.add('visible');
   if(t==='pedidos') loadOrdersFromCloud();
   if(t==='admin')   renderAdmin();
+  if(t==='vitrine') renderVitrine();
+}
+
+// ══════════════════════════════════════════════════════
+// VITRINE
+// ══════════════════════════════════════════════════════
+let vitrineDB = []; // campanhas ativas
+let vitrinePopupIdx = 0; // rodízio do popup
+
+async function loadVitrineFromCloud(){
+  try{
+    const snap = await db.collection('vitrine').where('ativa','==',true).get();
+    const now = new Date();
+    vitrineDB = snap.docs.map(d=>({id:d.id,...d.data()})).filter(c=>{
+      const start = c.dataInicio ? new Date(c.dataInicio) : null;
+      const end   = c.dataFim   ? new Date(c.dataFim)   : null;
+      if(start && now < start) return false;
+      if(end   && now > end)   return false;
+      return true;
+    });
+    // Carrega itens de cada campanha
+    for(const camp of vitrineDB){
+      if(!camp.itens) camp.itens=[];
+    }
+    showVitrinePopup();
+  }catch(e){
+    console.warn('Vitrine offline:',e.message);
+    vitrineDB=[];
+  }
+}
+
+function showVitrinePopup(){
+  // Coleta todos os itens de todas as campanhas
+  const allItems = [];
+  vitrineDB.forEach(camp=>{
+    (camp.itens||[]).forEach(item=>{
+      if(item.estoque > 0) allItems.push({...item, campNome: camp.nome});
+    });
+  });
+  if(!allItems.length) return;
+
+  // Rodízio
+  if(vitrinePopupIdx >= allItems.length) vitrinePopupIdx=0;
+  const item = allItems[vitrinePopupIdx];
+  vitrinePopupIdx++;
+
+  document.getElementById('vtPopupImg').src = item.imgUrl||'';
+  document.getElementById('vtPopupCampTitle').textContent = item.campNome||'Novidades';
+  document.getElementById('vtPopupStock').textContent = `🔥 Restam ${item.estoque} unidades`;
+  document.getElementById('vtPopupPrice').textContent = 'R$ '+Number(item.preco).toFixed(2).replace('.',',');
+  document.getElementById('vtPopupBackdrop').classList.add('open');
+  document.getElementById('vtPopup').classList.add('open');
+}
+
+function closeVitrinePopup(){
+  document.getElementById('vtPopupBackdrop').classList.remove('open');
+  document.getElementById('vtPopup').classList.remove('open');
+}
+
+function renderVitrine(){
+  const grid = document.getElementById('vitrineGrid');
+  if(!vitrineDB.length){
+    grid.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px;grid-column:1/-1">Nenhuma campanha ativa no momento.</div>';
+    return;
+  }
+  grid.innerHTML='';
+  vitrineDB.forEach(camp=>{
+    (camp.itens||[]).forEach(item=>{
+      const esgotado = item.estoque <= 0;
+      const low = item.estoque > 0 && item.estoque <= 5;
+      const card = document.createElement('div');
+      card.className = 'vt-card'+(esgotado?' esgotado':'');
+      card.innerHTML=`
+        <div class="vt-card-img">
+          <img src="${item.imgUrl||''}" alt="" loading="lazy">
+        </div>
+        ${esgotado?'<div class="vt-badge-esgotado">ESGOTADO</div>':''}
+        <div class="vt-card-body">
+          <div class="vt-card-price">R$ ${Number(item.preco).toFixed(2).replace('.',',')}</div>
+          <div class="vt-card-stock ${low?'low':''}">
+            ${esgotado?'Esgotado':`🔥 Restam ${item.estoque}`}
+          </div>
+          <button class="vt-btn" ${esgotado?'disabled':''} onclick="openVitrineOrder('${camp.id}','${item.id}')">
+            ${esgotado?'Esgotado':'Quero essa →'}
+          </button>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  });
+}
+
+// ── Vitrine order ──────────────────────────────────────
+let _vtPending = null;
+
+function openVitrineOrder(campId, itemId){
+  const camp = vitrineDB.find(c=>c.id===campId);
+  if(!camp) return;
+  const item = (camp.itens||[]).find(i=>i.id===itemId);
+  if(!item||item.estoque<=0) return;
+
+  _vtPending = {campId, itemId, camp, item};
+
+  // Render item summary
+  document.getElementById('vtOrderItem').innerHTML=`
+    <div style="display:flex;gap:12px;align-items:center;background:var(--surface2);border-radius:12px;padding:12px">
+      <img src="${item.imgUrl||''}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;background:#111">
+      <div>
+        <div style="font-size:11px;color:var(--muted)">${camp.nome}</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent)">${'R$ '+Number(item.preco).toFixed(2).replace('.',',')}</div>
+        <div style="font-size:11px;color:var(--accent2)">🔥 Restam ${item.estoque} unidades</div>
+      </div>
+    </div>
+  `;
+
+  // Render size buttons
+  const sizes = sizesDB['camiseta'] || [];
+  document.getElementById('vtSizeBtns').innerHTML = sizes.map(s=>
+    `<button class="size-btn" data-size="${s.id}" onclick="selectSize(this)">${s.label}</button>`
+  ).join('');
+
+  document.getElementById('vtClientName').value='';
+  document.getElementById('vtClientPhone').value='';
+  document.getElementById('vitrineOrderOverlay').classList.add('open');
+}
+
+function closeVitrineOrder(){
+  document.getElementById('vitrineOrderOverlay').classList.remove('open');
+  _vtPending=null;
+}
+
+async function confirmVitrineOrder(){
+  if(!_vtPending) return;
+  const name  = document.getElementById('vtClientName').value.trim();
+  const phone = document.getElementById('vtClientPhone').value.trim().replace(/\D/g,'');
+  const size  = document.querySelector('#vtSizeBtns .size-btn.active')?.dataset.size||'';
+
+  if(!size){ showToast('❌ Escolha o tamanho'); return; }
+  if(!name){ showToast('❌ Informe o nome'); return; }
+  if(!phone||phone.length<10){ showToast('❌ WhatsApp inválido'); return; }
+
+  const {campId, itemId, camp, item} = _vtPending;
+  const code = genCode();
+  const now  = new Date();
+
+  // Decrementa estoque no Firebase
+  try{
+    const campRef = db.collection('vitrine').doc(campId);
+    const campDoc = await campRef.get();
+    if(campDoc.exists){
+      const itens = campDoc.data().itens||[];
+      const idx   = itens.findIndex(i=>i.id===itemId);
+      if(idx>=0 && itens[idx].estoque>0){
+        itens[idx].estoque--;
+        await campRef.update({itens});
+        // Atualiza local
+        const localItem = (camp.itens||[]).find(i=>i.id===itemId);
+        if(localItem) localItem.estoque--;
+      }
+    }
+  }catch(e){ console.error('estoque:',e); }
+
+  // Salva pedido
+  const order={
+    code, datetime:now.toISOString(),
+    type:'vitrine', campanha:camp.nome,
+    clientName:name, clientPhone:phone, size,
+    preco:item.preco, total:item.preco,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try{ await db.collection('pedidos').doc(code).set(order); }catch(e){}
+
+  closeVitrineOrder();
+  renderVitrine();
+  showToast('✅ Pedido '+code+' confirmado!','var(--green)');
+
+  // WhatsApp
+  const msg = encodeURIComponent(
+    `Olá ${name}! 👋\n`+
+    `Seu pedido *DTF Studio* foi confirmado! 🎉\n\n`+
+    `*Pedido:* ${code}\n`+
+    `*Campanha:* ${camp.nome}\n`+
+    `*Tamanho:* ${size}\n`+
+    `*Total: R$ ${Number(item.preco).toFixed(2).replace('.',',')}*\n\n`+
+    `Em breve entraremos em contato. Obrigado! 🤙`
+  );
+  const clientNum = phone.startsWith('55')?phone:'55'+phone;
+  setTimeout(()=>window.open(`https://wa.me/${clientNum}?text=${msg}`,'_blank'),400);
+}
+
+// ── Admin — Gestão de Campanhas ───────────────────────
+function renderAdminVitrine(g){
+  // Adiciona seção de campanhas ao grid admin
+  const campHtml=`<div class="acard" style="grid-column:1/-1;padding:0;overflow:hidden">
+    <div class="accordion-bar" onclick="toggleCampAccordion(this)">
+      <h3>🛍️ Campanhas da Vitrine</h3>
+      <span class="accordion-arrow">▼</span>
+    </div>
+    <div class="accordion-body" id="campBody">
+      <div style="padding:12px 14px 14px">
+        <div class="atag" style="margin-bottom:12px">Crie e gerencie campanhas com estoque limitado</div>
+        <div id="campList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px"></div>
+        <button class="abtn" onclick="openNewCamp()" style="width:100%;padding:8px">+ Nova Campanha</button>
+      </div>
+    </div>
+  </div>`;
+  g.insertAdjacentHTML('beforeend', campHtml);
+  loadCampsForAdmin();
+}
+
+async function loadCampsForAdmin(){
+  const list = document.getElementById('campList');
+  if(!list) return;
+  try{
+    const snap = await db.collection('vitrine').orderBy('criadoEm','desc').limit(20).get();
+    if(snap.empty){ list.innerHTML='<div style="color:var(--muted);font-size:11px">Nenhuma campanha ainda.</div>'; return; }
+    list.innerHTML = snap.docs.map(d=>{
+      const c={id:d.id,...d.data()};
+      const total = (c.itens||[]).reduce((a,i)=>a+i.estoque,0);
+      return `<div style="background:var(--surface2);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px">
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:13px">${c.nome||'Sem nome'}</div>
+          <div style="font-size:10px;color:var(--muted)">${c.dataInicio||'—'} → ${c.dataFim||'—'} · ${(c.itens||[]).length} item(s) · ${total} em estoque</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div style="width:8px;height:8px;border-radius:50%;background:${c.ativa?'var(--green)':'var(--muted)'}"></div>
+          <span style="font-size:10px;color:var(--muted)">${c.ativa?'Ativa':'Inativa'}</span>
+          <button class="adel" onclick="toggleCamp('${c.id}',${!c.ativa})" style="font-size:12px;color:var(--accent2)">${c.ativa?'⏸':'▶'}</button>
+          <button class="adel" onclick="deleteCamp('${c.id}')" style="font-size:14px">×</button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){ console.error(e); }
+}
+
+function toggleCampAccordion(bar){
+  bar.classList.toggle('open');
+  document.getElementById('campBody').classList.toggle('open');
+}
+
+function openNewCamp(){
+  const nome = prompt('Nome da campanha (ex: Maio Amarelo):');
+  if(!nome) return;
+  const inicio = prompt('Data início (AAAA-MM-DD):');
+  const fim    = prompt('Data fim (AAAA-MM-DD):');
+  const texto  = prompt('Texto do popup (ex: Novidades da Semana):') || nome;
+  createCamp(nome, inicio, fim, texto);
+}
+
+async function createCamp(nome, dataInicio, dataFim, textoPop){
+  try{
+    await db.collection('vitrine').add({
+      nome, dataInicio, dataFim, textoPop,
+      ativa:true, itens:[],
+      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('✅ Campanha criada!','var(--green)');
+    loadCampsForAdmin();
+    loadVitrineFromCloud();
+  }catch(e){ showToast('❌ Erro ao criar campanha'); }
+}
+
+async function toggleCamp(id, novoEstado){
+  try{
+    await db.collection('vitrine').doc(id).update({ativa:novoEstado});
+    loadCampsForAdmin();
+    loadVitrineFromCloud();
+    showToast(novoEstado?'✅ Campanha ativada':'⏸ Campanha pausada');
+  }catch(e){}
+}
+
+async function deleteCamp(id){
+  if(!confirm('Excluir esta campanha?')) return;
+  try{
+    await db.collection('vitrine').doc(id).delete();
+    loadCampsForAdmin();
+    loadVitrineFromCloud();
+    showToast('🗑 Campanha removida');
+  }catch(e){}
 }
 
 // ══════════════════════════════════════════════════════
@@ -1404,6 +1771,7 @@ function switchTab(t){
 renderMockup();
 updateCart();
 loadDBFromCloud();
+loadVitrineFromCloud();
 preloadAllMockups();
 
 // ── Pré-carregamento de todos os mockups ──────────────
@@ -1411,18 +1779,15 @@ function preloadAllMockups(){
   const garments  = ['camiseta','moletom'];
   const viewKeys  = ['frente','costas','lat-dir','lat-esq'];
   const colors    = ['branco','preto','cinza'];
-  // Save current color to restore after preload
   const savedColor = color;
   garments.forEach(g=>{
     viewKeys.forEach(v=>{
       colors.forEach(c=>{
-        // Temporarily swap color to build correct URL
         color = c;
         const url = imgSrc(`${g}-${v}`);
         color = savedColor;
         const img = new Image();
         img.src = url;
-        // No need to append to DOM — browser caches it
       });
     });
   });
