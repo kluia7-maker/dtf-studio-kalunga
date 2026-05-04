@@ -423,15 +423,7 @@ function placeZones(){
       const col = ZONE_COLORS[z.id]||{fill:'rgba(255,255,255,0.1)',border:'rgba(255,255,255,0.3)'};
       el.style.background = col.fill;
       el.style.border = `1.5px solid ${col.border}`;
-      el.addEventListener('click', e=>{
-        e.stopPropagation();
-        // Se as zonas estão visíveis, abre o sheet; senão, só mostra as zonas
-        if(stage.classList.contains('zones-visible')){
-          openSheet(z.id);
-        } else {
-          stage.classList.add('zones-visible');
-        }
-      });
+      el.addEventListener('click', e=>{ e.stopPropagation(); openSheet(z.id); });
     }
     overlay.appendChild(el);
   });
