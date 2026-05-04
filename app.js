@@ -425,11 +425,7 @@ function placeZones(){
       el.style.border = `1.5px solid ${col.border}`;
       el.addEventListener('click', e=>{
         e.stopPropagation();
-        if(stage.classList.contains('zones-visible')){
-          openSheet(z.id);
-        } else {
-          stage.classList.add('zones-visible');
-        }
+        openSheet(z.id);
       });
     }
     overlay.appendChild(el);
