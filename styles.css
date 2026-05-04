@@ -154,6 +154,9 @@ header{
   position:absolute;inset:0;
   pointer-events:none;
 }
+.mockup-overlay .zone{
+  pointer-events:all;
+}
 .zone{
   position:absolute;
   border-radius:8px;
