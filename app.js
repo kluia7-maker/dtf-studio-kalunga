@@ -349,6 +349,19 @@ function renderMockup(){
   img.onload = placeZones;
   img.src = imgSrc(key);
   if(img.complete && img.naturalWidth) placeZones();
+  let cordaoEl = document.getElementById('cordaoImg');
+  if(garment === 'moletom' && VIEWS[viewIdx].key === 'frente'){
+    if(!cordaoEl){
+      cordaoEl = document.createElement('img');
+      cordaoEl.id = 'cordaoImg';
+      cordaoEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;z-index:10;';
+      stage.appendChild(cordaoEl);
+    }
+    cordaoEl.src = `${STORAGE_BASE}/mockups%2FCORDAO_${(color==='preto'?'PRETO':'BRANCO')}.webp?alt=media`;
+    cordaoEl.style.display = 'block';
+  } else {
+    if(cordaoEl) cordaoEl.style.display = 'none';
+  }
   renderViewDots();
 }
 
