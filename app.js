@@ -424,7 +424,6 @@ function placeZones(){
       el.style.background = col.fill;
       el.style.border = `1.5px solid ${col.border}`;
       el.addEventListener('click', e=>{ e.stopPropagation(); openSheet(z.id); });
-      });
     }
     overlay.appendChild(el);
   });
