@@ -683,7 +683,7 @@ function triggerUpsell(justChosenPosId){
 
 function dismissUpsell(){
   clearTimeout(_upsellTimer);
-  document.getElementById('upsellBar').classList.remove('visible');
+  document.getElementById('upsellBar')?.classList.remove('visible');
   _upsellTarget=null;
 }
 
@@ -721,7 +721,7 @@ function updateCart(){
   bar.classList.toggle('visible', n>0);
   document.getElementById('actionTotal').textContent = fmt(t);
 
-  document.getElementById('upsellBar').classList.toggle('with-bar', n>0);
+  document.getElementById('upsellBar')?.classList.toggle('with-bar', n>0);
 }
 
 // ══════════════════════════════════════════════════════
