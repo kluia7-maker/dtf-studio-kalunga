@@ -438,9 +438,7 @@ function placeZones(){
 
   // overlay não deve capturar cliques — as zonas já têm stopPropagation
   overlay.style.pointerEvents = 'none';
-  // Mas as zonas sim
-  overlay.querySelectorAll('.zone').forEach(z=>{ z.style.pointerEvents='all'; });
-}
+  }
 
 // Show zones when tapping the mockup image area
 document.addEventListener('DOMContentLoaded', ()=>{
