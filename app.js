@@ -436,8 +436,13 @@ function placeZones(){
   });
 
   // overlay não deve capturar cliques — as zonas já têm stopPropagation
-  overlay.style.pointerEvents = 'none';
-  }
+  overlay.addEventListener('click', e=>{
+    if(!e.target.closest('.zone')){
+      stage.classList.remove('zones-visible');
+      document.querySelectorAll('.zone.show-del').forEach(z=>z.classList.remove('show-del'));
+    }
+  });
+}
 
 // Show zones when tapping the mockup image area
 document.addEventListener('DOMContentLoaded', ()=>{
