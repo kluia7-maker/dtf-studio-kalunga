@@ -718,7 +718,6 @@ function updateCart(){
   const btn   = document.getElementById('cartBtn');
   const count = document.getElementById('cartCount');
   const total = document.getElementById('cartTotal');
-  if(!btn) return;
   btn.classList.toggle('has-items', n>0);
   count.style.display = n>0?'flex':'none';
   count.textContent   = n;
@@ -1589,7 +1588,7 @@ async function loadVitrineFromCloud(){
       const start = c.dataInicio ? new Date(c.dataInicio) : null;
       const end   = c.dataFim   ? new Date(c.dataFim)   : null;
       if(start && now < start) return false;
-      if(end){ const endDay = new Date(c.dataFim+'T23:59:59'); if(now > endDay) return false; }
+      if(end   && now > end)   return false;
       return true;
     });
     // Carrega itens de cada campanha
