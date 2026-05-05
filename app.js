@@ -1596,7 +1596,7 @@ async function loadVitrineFromCloud(){
       const start = c.dataInicio ? new Date(c.dataInicio) : null;
       const end   = c.dataFim   ? new Date(c.dataFim)   : null;
       if(start && now < start) return false;
-      if(end   && now > end)   return false;
+      if(end){ const endDay = new Date(c.dataFim+'T23:59:59'); if(now > endDay) return false; }
       return true;
     });
     // Carrega itens de cada campanha
@@ -1646,22 +1646,23 @@ function renderVitrine(){
   }
   grid.innerHTML='';
   vitrineDB.forEach(camp=>{
-    (camp.itens||[]).forEach(item=>{
-      const esgotado = item.estoque <= 0;
+    (camp.itens||[]).forEach((item,idx)=>{
+      const esgotado = (item.estoque||0) <= 0;
       const low = item.estoque > 0 && item.estoque <= 5;
       const card = document.createElement('div');
       card.className = 'vt-card'+(esgotado?' esgotado':'');
       card.innerHTML=`
         <div class="vt-card-img">
-          <img src="${item.imgUrl||''}" alt="" loading="lazy">
+          ${item.imgUrl?`<img src="${item.imgUrl}" alt="${item.nome||''}" loading="lazy">`:'<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px">🖼️</div>'}
         </div>
         ${esgotado?'<div class="vt-badge-esgotado">ESGOTADO</div>':''}
         <div class="vt-card-body">
+          <div class="vt-card-name" style="font-size:13px;font-weight:600;margin-bottom:4px">${item.nome||''}</div>
           <div class="vt-card-price">R$ ${Number(item.preco).toFixed(2).replace('.',',')}</div>
           <div class="vt-card-stock ${low?'low':''}">
             ${esgotado?'Esgotado':`🔥 Restam ${item.estoque}`}
           </div>
-          <button class="vt-btn" ${esgotado?'disabled':''} onclick="openVitrineOrder('${camp.id}','${item.id}')">
+          <button class="vt-btn" ${esgotado?'disabled':''} onclick="openVitrineOrder('${camp.id}',${idx})">
             ${esgotado?'Esgotado':'Quero essa →'}
           </button>
         </div>
@@ -1674,12 +1675,11 @@ function renderVitrine(){
 // ── Vitrine order ──────────────────────────────────────
 let _vtPending = null;
 
-function openVitrineOrder(campId, itemId){
+function openVitrineOrder(campId, itemIdx){
   const camp = vitrineDB.find(c=>c.id===campId);
   if(!camp) return;
-  const item = (camp.itens||[]).find(i=>i.id===itemId);
+  const item = (camp.itens||[])[itemIdx];
   if(!item||item.estoque<=0) return;
-
   _vtPending = {campId, itemId, camp, item};
 
   // Render item summary
@@ -1720,7 +1720,7 @@ async function confirmVitrineOrder(){
   if(!name){ showToast('❌ Informe o nome'); return; }
   if(!phone||phone.length<10){ showToast('❌ WhatsApp inválido'); return; }
 
-  const {campId, itemId, camp, item} = _vtPending;
+  const {campId, itemIdx, camp, item} = _vtPending;
   const code = genCode();
   const now  = new Date();
 
@@ -1730,13 +1730,10 @@ async function confirmVitrineOrder(){
     const campDoc = await campRef.get();
     if(campDoc.exists){
       const itens = campDoc.data().itens||[];
-      const idx   = itens.findIndex(i=>i.id===itemId);
-      if(idx>=0 && itens[idx].estoque>0){
-        itens[idx].estoque--;
+      if(itens[itemIdx] && itens[itemIdx].estoque>0){
+        itens[itemIdx].estoque--;
         await campRef.update({itens});
-        // Atualiza local
-        const localItem = (camp.itens||[]).find(i=>i.id===itemId);
-        if(localItem) localItem.estoque--;
+        if(camp.itens[itemIdx]) camp.itens[itemIdx].estoque--;
       }
     }
   }catch(e){ console.error('estoque:',e); }
@@ -1797,23 +1794,140 @@ async function loadCampsForAdmin(){
     if(snap.empty){ list.innerHTML='<div style="color:var(--muted);font-size:11px">Nenhuma campanha ainda.</div>'; return; }
     list.innerHTML = snap.docs.map(d=>{
       const c={id:d.id,...d.data()};
-      const total = (c.itens||[]).reduce((a,i)=>a+i.estoque,0);
-      return `<div style="background:var(--surface2);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px">
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:13px">${c.nome||'Sem nome'}</div>
-          <div style="font-size:10px;color:var(--muted)">${c.dataInicio||'—'} → ${c.dataFim||'—'} · ${(c.itens||[]).length} item(s) · ${total} em estoque</div>
+      const total = (c.itens||[]).reduce((a,i)=>a+(i.estoque||0),0);
+      const itensHtml = (c.itens||[]).map((it,idx)=>`
+        <div style="display:flex;align-items:center;gap:8px;background:var(--surface3);border-radius:8px;padding:7px 10px;margin-bottom:6px">
+          ${it.imgUrl?`<img src="${it.imgUrl}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#111">`:'<div style="width:36px;height:36px;border-radius:6px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px">🖼️</div>'}
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.nome}</div>
+            <div style="font-size:10px;color:var(--muted)">R$${Number(it.preco).toFixed(2).replace('.',',')} · ${it.estoque} em estoque</div>
+          </div>
+          <button onclick="delCampItem('${c.id}',${idx})" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:2px 6px;flex-shrink:0">×</button>
         </div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <div style="width:8px;height:8px;border-radius:50%;background:${c.ativa?'var(--green)':'var(--muted)'}"></div>
-          <span style="font-size:10px;color:var(--muted)">${c.ativa?'Ativa':'Inativa'}</span>
-          <button class="adel" onclick="toggleCamp('${c.id}',${!c.ativa})" style="font-size:12px;color:var(--accent2)">${c.ativa?'⏸':'▶'}</button>
-          <button class="adel" onclick="deleteCamp('${c.id}')" style="font-size:14px">×</button>
+      `).join('');
+      return `<div style="background:var(--surface2);border-radius:10px;padding:10px 12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:13px">${c.nome||'Sem nome'}</div>
+            <div style="font-size:10px;color:var(--muted)">${c.dataInicio||'—'} → ${c.dataFim||'—'} · ${(c.itens||[]).length} item(s) · ${total} em estoque</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+            <div style="width:8px;height:8px;border-radius:50%;background:${c.ativa?'var(--green)':'var(--muted)'}"></div>
+            <span style="font-size:10px;color:var(--muted)">${c.ativa?'Ativa':'Inativa'}</span>
+            <button onclick="toggleCamp('${c.id}',${!c.ativa})" style="background:none;border:none;color:var(--accent2);font-size:14px;cursor:pointer">${c.ativa?'⏸':'▶'}</button>
+            <button onclick="deleteCamp('${c.id}')" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer">×</button>
+          </div>
         </div>
+        ${itensHtml}
+        <button onclick="openAddItemPopup('${c.id}')" style="width:100%;background:var(--surface3);border:1.5px dashed var(--muted2);color:var(--muted);border-radius:8px;padding:7px;font-size:12px;cursor:pointer;margin-top:4px;font-family:'DM Sans',sans-serif;">+ Adicionar item</button>
       </div>`;
     }).join('');
   }catch(e){ console.error(e); }
 }
+function openAddItemPopup(campId){
+  let popup = document.getElementById('addItemPopup');
+  if(popup) popup.remove();
+  popup = document.createElement('div');
+  popup.id = 'addItemPopup';
+  popup.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88);padding:16px;';
+  popup.innerHTML = `
+    <div style="background:var(--surface);border-radius:18px;border:1px solid var(--border);width:100%;max-width:400px;padding:22px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;margin-bottom:16px">📦 Novo Item</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+        <div>
+          <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Imagem do produto</label>
+          <label style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1.5px dashed var(--muted2);border-radius:8px;padding:10px;cursor:pointer;font-size:12px;color:var(--muted)">
+            🖼️ Selecionar imagem
+            <input type="file" accept="image/*" style="display:none" onchange="previewItemImg(this)">
+          </label>
+          <div id="itemImgPreview" style="margin-top:6px;display:none">
+            <img id="itemImgThumb" src="" style="width:60px;height:60px;object-fit:contain;border-radius:8px;background:#111">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nome do produto *</label>
+          <input id="ni_nome" type="text" placeholder="Ex: Camiseta Camp Half-Blood"
+            style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Preço (R$) *</label>
+            <input id="ni_preco" type="number" placeholder="59.90"
+              style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Estoque *</label>
+            <input id="ni_estoque" type="number" placeholder="10"
+              style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Tamanhos disponíveis</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${['P','M','G','GG','XGG'].map(s=>`
+              <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+                <input type="checkbox" value="${s}" name="ni_tam" style="accent-color:var(--accent)"> ${s}
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('addItemPopup').remove()" style="flex:1;background:none;border:1.5px solid var(--border);color:var(--text);border-radius:50px;padding:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Cancelar</button>
+        <button onclick="submitAddItem('${campId}')" style="flex:2;background:var(--green);color:#fff;border:none;border-radius:50px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">✅ Salvar Item</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(popup);
+  popup.addEventListener('click', e=>{ if(e.target===popup) popup.remove(); });
+}
 
+let _pendingItemImg = null;
+
+function previewItemImg(input){
+  const file = input.files[0];
+  if(!file) return;
+  resizeImg(file, url=>{
+    _pendingItemImg = url;
+    document.getElementById('itemImgThumb').src = url;
+    document.getElementById('itemImgPreview').style.display = 'block';
+  });
+}
+
+async function submitAddItem(campId){
+  const nome    = document.getElementById('ni_nome')?.value.trim();
+  const preco   = parseFloat(document.getElementById('ni_preco')?.value);
+  const estoque = parseInt(document.getElementById('ni_estoque')?.value);
+  const tams    = Array.from(document.querySelectorAll('input[name="ni_tam"]:checked')).map(c=>c.value);
+  if(!nome||isNaN(preco)||isNaN(estoque)){ showToast('❌ Preencha nome, preço e estoque'); return; }
+  const item = { nome, preco, estoque, tamanhos: tams, imgUrl: _pendingItemImg||null };
+  _pendingItemImg = null;
+  try{
+    const ref = db.collection('vitrine').doc(campId);
+    const doc = await ref.get();
+    const itens = doc.data().itens||[];
+    itens.push(item);
+    await ref.update({itens});
+    document.getElementById('addItemPopup')?.remove();
+    showToast('✅ Item adicionado!','var(--green)');
+    loadCampsForAdmin();
+    loadVitrineFromCloud();
+  }catch(e){ showToast('❌ Erro ao salvar item'); }
+}
+
+async function delCampItem(campId, idx){
+  if(!confirm('Remover este item?')) return;
+  try{
+    const ref = db.collection('vitrine').doc(campId);
+    const doc = await ref.get();
+    const itens = doc.data().itens||[];
+    itens.splice(idx,1);
+    await ref.update({itens});
+    showToast('🗑 Item removido');
+    loadCampsForAdmin();
+    loadVitrineFromCloud();
+  }catch(e){}
+}
 function toggleCampAccordion(bar){
   bar.classList.toggle('open');
   document.getElementById('campBody').classList.toggle('open');
