@@ -141,7 +141,10 @@ header{
   transition:background .3s ease;
 }
 ...mockup-img{
-  max-width:100%;max-height:100%;
+  max-width:100%;
+  max-height:80dvh;
+  width:auto;
+  height:auto;
   object-fit:contain;
   display:block;
   user-select:none;
