@@ -1588,7 +1588,7 @@ async function loadVitrineFromCloud(){
       const start = c.dataInicio ? new Date(c.dataInicio) : null;
       const end   = c.dataFim   ? new Date(c.dataFim)   : null;
       if(start && now < start) return false;
-      if(end   && now > end)   return false;
+      if(end){ const endDay = new Date(c.dataFim+'T23:59:59'); if(now > endDay) return false; }
       return true;
     });
     // Carrega itens de cada campanha
