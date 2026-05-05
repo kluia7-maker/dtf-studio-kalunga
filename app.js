@@ -718,6 +718,7 @@ function updateCart(){
   const btn   = document.getElementById('cartBtn');
   const count = document.getElementById('cartCount');
   const total = document.getElementById('cartTotal');
+  if(!btn) return;
   btn.classList.toggle('has-items', n>0);
   count.style.display = n>0?'flex':'none';
   count.textContent   = n;
