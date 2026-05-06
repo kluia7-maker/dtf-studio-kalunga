@@ -1889,10 +1889,14 @@ function openAddItemPopup(campId){
       <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
         <div>
           <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Imagens do produto (até 4)</label>
+          <label style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1.5px dashed var(--muted2);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12px;color:var(--muted);margin-bottom:8px">
+            📁 Selecionar até 4 imagens de uma vez
+            <input type="file" accept="image/*" multiple style="display:none" onchange="previewItemImgMulti(this)">
+          </label>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
             ${[0,1,2,3].map(i=>`
               <label style="aspect-ratio:1;border-radius:8px;background:var(--surface2);border:1.5px dashed var(--muted2);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative" id="imgSlot_${i}">
-                <span style="font-size:20px">+</span>
+                <span style="font-size:20px;color:var(--muted)">+</span>
                 <input type="file" accept="image/*" style="display:none" onchange="previewItemImgSlot(this,${i})">
               </label>
             `).join('')}
@@ -1938,7 +1942,19 @@ function openAddItemPopup(campId){
 }
 
 let _pendingItemImgs = [null,null,null,null];
-
+function previewItemImgMulti(input){
+  const files = Array.from(input.files).slice(0,4);
+  files.forEach((file,i)=>{
+    resizeImg(file, url=>{
+      _pendingItemImgs[i] = url;
+      const slot = document.getElementById('imgSlot_'+i);
+      if(slot){
+        slot.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px"><input type="file" accept="image/*" style="display:none" onchange="previewItemImgSlot(this,${i})">`;
+        slot.style.border = '1.5px solid var(--green)';
+      }
+    });
+  });
+}
 function previewItemImgSlot(input, idx){
   const file = input.files[0];
   if(!file) return;
