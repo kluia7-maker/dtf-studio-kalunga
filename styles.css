@@ -140,7 +140,7 @@ header{
   overflow:hidden;
   transition:background .3s ease;
 }
-...mockup-img{
+.mockup-img{
   max-width:100%;
   max-height:80dvh;
   width:auto;
