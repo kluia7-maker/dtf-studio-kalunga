@@ -1732,7 +1732,7 @@ function openVitrineOrder(campId, itemIdx){
   if(!camp) return;
   const item = (camp.itens||[])[itemIdx];
   if(!item||item.estoque<=0) return;
-  _vtPending = {campId, itemId, camp, item};
+  _vtPending = {campId, itemIdx, camp, item};
 
   // Render item summary
   document.getElementById('vtOrderItem').innerHTML=`
