@@ -156,6 +156,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const storage = firebase.storage();
 
 function setSyncStatus(ok){
   const d = document.getElementById('syncDot');
@@ -1945,9 +1946,10 @@ let _pendingItemImgs = [null,null,null,null];
 function previewItemImgMulti(input){
   const files = Array.from(input.files).slice(0,4);
   files.forEach((file,i)=>{
-    resizeImg(file, url=>{
+    const slot = document.getElementById('imgSlot_'+i);
+    if(slot) slot.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)">⏳</div>`;
+    uploadToStorage(file, `vitrine/${Date.now()}_${i}_${file.name}`, url=>{
       _pendingItemImgs[i] = url;
-      const slot = document.getElementById('imgSlot_'+i);
       if(slot){
         slot.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px"><input type="file" accept="image/*" style="display:none" onchange="previewItemImgSlot(this,${i})">`;
         slot.style.border = '1.5px solid var(--green)';
@@ -1955,12 +1957,20 @@ function previewItemImgMulti(input){
     });
   });
 }
+function uploadToStorage(file, path, callback){
+  const ref = storage.ref(path);
+  ref.put(file).then(snap=>snap.ref.getDownloadURL()).then(url=>callback(url)).catch(e=>{
+    console.error('Upload Storage:',e);
+    showToast('❌ Erro ao enviar imagem');
+  });
+}
 function previewItemImgSlot(input, idx){
   const file = input.files[0];
   if(!file) return;
-  resizeImg(file, url=>{
+  const slot = document.getElementById('imgSlot_'+idx);
+  if(slot) slot.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)">⏳</div>`;
+  uploadToStorage(file, `vitrine/${Date.now()}_${idx}_${file.name}`, url=>{
     _pendingItemImgs[idx] = url;
-    const slot = document.getElementById('imgSlot_'+idx);
     if(slot){
       slot.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px"><input type="file" accept="image/*" style="display:none" onchange="previewItemImgSlot(this,${idx})">`;
       slot.style.border = '1.5px solid var(--green)';
