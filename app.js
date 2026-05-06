@@ -358,7 +358,7 @@ function renderMockup(){
       cordaoEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;z-index:10;';
       stage.appendChild(cordaoEl);
     }
-    cordaoEl.src = `${STORAGE_BASE}/mockups%2FCORDAO_${(color==='preto'?'PRETO':'BRANCO')}.webp?alt=media`;
+    cordaoEl.src = `${STORAGE_BASE}/mockups%2FCORDAO_${(color==='preto'?'PRETO':color==='cinza'?'CINZA':'BRANCO')}.webp?alt=media`;
     cordaoEl.style.display = 'block';
   } else {
     if(cordaoEl) cordaoEl.style.display = 'none';
@@ -1874,6 +1874,7 @@ async function loadCampsForAdmin(){
           <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
             <div style="width:8px;height:8px;border-radius:50%;background:${c.ativa?'var(--green)':'var(--muted)'}"></div>
             <span style="font-size:10px;color:var(--muted)">${c.ativa?'Ativa':'Inativa'}</span>
+            <button onclick="openEditCamp('${c.id}','${c.nome||''}','${c.dataInicio||''}','${c.dataFim||''}','${c.textoPop||''}')" style="background:none;border:none;color:var(--accent2);font-size:12px;cursor:pointer">✏️</button>
             <button onclick="toggleCamp('${c.id}',${!c.ativa})" style="background:none;border:none;color:var(--accent2);font-size:14px;cursor:pointer">${c.ativa?'⏸':'▶'}</button>
             <button onclick="deleteCamp('${c.id}')" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer">×</button>
           </div>
@@ -1884,6 +1885,7 @@ async function loadCampsForAdmin(){
     }).join('');
   }catch(e){ console.error(e); }
 }
+
 function openAddItemPopup(campId){
   let popup = document.getElementById('addItemPopup');
   if(popup) popup.remove();
@@ -1964,6 +1966,7 @@ function previewItemImgMulti(input){
     });
   });
 }
+
 function uploadToStorage(file, path, callback){
   const ref = storage.ref(path);
   ref.put(file).then(snap=>snap.ref.getDownloadURL()).then(url=>callback(url)).catch(e=>{
@@ -1971,6 +1974,7 @@ function uploadToStorage(file, path, callback){
     showToast('❌ Erro ao enviar imagem');
   });
 }
+
 function previewItemImgSlot(input, idx){
   const file = input.files[0];
   if(!file) return;
@@ -2020,6 +2024,66 @@ async function delCampItem(campId, idx){
     loadVitrineFromCloud();
   }catch(e){}
 }
+
+function openEditCamp(id, nome, inicio, fim, texto){
+  let popup = document.getElementById('editCampPopup');
+  if(popup) popup.remove();
+  popup = document.createElement('div');
+  popup.id = 'editCampPopup';
+  popup.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88);padding:16px;';
+  popup.innerHTML = `
+    <div style="background:var(--surface);border-radius:18px;border:1px solid var(--border);width:100%;max-width:420px;padding:22px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;margin-bottom:4px">✏️ Editar Campanha</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:18px">Altere os dados e salve.</p>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+        <div>
+          <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nome da Campanha *</label>
+          <input id="ec_nome" type="text" value="${nome}"
+            style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">📅 Data Início</label>
+            <input id="ec_inicio" type="date" value="${inicio}"
+              style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">📅 Data Fim</label>
+            <input id="ec_fim" type="date" value="${fim}"
+              style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Texto do Popup</label>
+          <input id="ec_texto" type="text" value="${texto}"
+            style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('editCampPopup').remove()" style="flex:1;background:none;border:1.5px solid var(--border);color:var(--text);border-radius:50px;padding:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Cancelar</button>
+        <button onclick="submitEditCamp('${id}')" style="flex:2;background:var(--green);color:#fff;border:none;border-radius:50px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">💾 Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(popup);
+  popup.addEventListener('click', e=>{ if(e.target===popup) popup.remove(); });
+}
+
+async function submitEditCamp(id){
+  const nome   = document.getElementById('ec_nome')?.value.trim();
+  const inicio = document.getElementById('ec_inicio')?.value;
+  const fim    = document.getElementById('ec_fim')?.value;
+  const texto  = document.getElementById('ec_texto')?.value.trim();
+  if(!nome){ showToast('❌ Informe o nome'); return; }
+  try{
+    await db.collection('vitrine').doc(id).update({nome, dataInicio:inicio, dataFim:fim, textoPop:texto});
+    document.getElementById('editCampPopup')?.remove();
+    showToast('✅ Campanha atualizada!','var(--green)');
+    loadCampsForAdmin();
+    loadVitrineFromCloud();
+  }catch(e){ showToast('❌ Erro ao salvar'); }
+}
+
 function toggleCampAccordion(bar){
   bar.classList.toggle('open');
   document.getElementById('campBody').classList.toggle('open');
