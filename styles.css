@@ -73,11 +73,11 @@ header{
   flex-shrink:0;
 }
 .tab{
-  flex:1;padding:9px 6px;text-align:center;
-  font-size:12px;font-weight:600;color:var(--muted);
+  flex:1;padding:9px 4px;text-align:center;
+  font-size:11px;font-weight:600;color:var(--muted);
   border-bottom:2px solid transparent;
   cursor:pointer;transition:all .2s;
-  user-select:none;
+  user-select:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
 
@@ -805,13 +805,14 @@ header{
 .vt-popup-backdrop.open{display:block}
 .vt-popup{
   display:none;position:fixed;
-  bottom:0;left:0;right:0;
+  bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:420px;
   z-index:401;
   background:var(--surface);
   border-radius:20px 20px 0 0;
   border-top:1px solid var(--border);
   padding:0 0 24px;
-  max-height:50dvh;overflow-y:auto;max-width:360px;
+  max-height:50dvh;overflow-y:auto;
   animation:slideUp .35s cubic-bezier(.32,.72,0,1);
 }
 .vt-popup.open{display:block}
@@ -865,3 +866,34 @@ body.admin-mode .tab-admin-only{display:flex}
 ═══════════════════════════════════════════════ */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:var(--muted2);border-radius:2px}
+
+/* ═══════════════════════════════════════════════
+   MOBILE / TABLET RESPONSIVO
+═══════════════════════════════════════════════ */
+@media (max-width: 480px){
+  header{ padding:0 10px; height:46px; }
+  .logo{ font-size:18px; letter-spacing:2px; }
+  .cart-btn{ padding:5px 10px 5px 8px; font-size:12px; gap:5px; }
+  .tab{ font-size:10px; padding:8px 2px; }
+  .garment-bar{ padding:8px 10px; gap:6px; }
+  .gbtn{ padding:5px 10px; font-size:11px; }
+  .mockup-stage{ border-radius:0; }
+  .action-bar{ padding:10px 12px; }
+  .action-total-val{ font-size:20px; }
+  .btn-fin{ padding:10px 18px; font-size:13px; }
+  .btn-reset{ padding:10px 14px; font-size:12px; }
+  .cat-sheet{ border-radius:20px 20px 0 0; }
+  .sheet-grid{ grid-template-columns:repeat(auto-fill,minmax(90px,1fr)); }
+  .preview-strip{ padding:10px 12px; gap:8px; }
+  .modal{ padding:16px; }
+  .vitrine-grid{ grid-template-columns:repeat(2,1fr); gap:10px; padding:10px; }
+  .vt-card-price{ font-size:16px; }
+  .orders-wrap{ padding:12px; }
+  .ohcard{ gap:8px; padding:10px; }
+  .admin-wrap{ padding:10px; }
+}
+
+@media (max-width: 360px){
+  .tab{ font-size:9px; }
+  .vitrine-grid{ grid-template-columns:repeat(2,1fr); gap:8px; }
+}
