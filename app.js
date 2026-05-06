@@ -569,7 +569,14 @@ function openSheet(posId){
     const doPreview=()=>{ hoverStamp=s; renderMiniZones(s); updatePreviewInfo(s); };
     c.addEventListener('mouseenter', doPreview);
     c.addEventListener('touchstart',  doPreview, {passive:true});
-    c.addEventListener('click', ()=>{ hoverStamp=s; renderMiniZones(s); updatePreviewInfo(s); updateConfirmBtn(); });
+   c.addEventListener('click', ()=>{
+      hoverStamp=s;
+      renderMiniZones(s);
+      updatePreviewInfo(s);
+      updateConfirmBtn();
+      document.querySelectorAll('.scard').forEach(el=>el.classList.remove('sel'));
+      c.classList.add('sel');
+    });
     grid.appendChild(c);
   });
 
