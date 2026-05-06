@@ -472,10 +472,17 @@ window.addEventListener('resize',()=>{
   resizeTimer = setTimeout(placeZones, 80);
 });
 
+function closeAllAdminAccordions(){
+  ['sizesBody','bgBody','stampsBody','campBody'].forEach(id=>{
+    document.getElementById(id)?.classList.remove('open');
+  });
+  document.querySelectorAll('.accordion-bar').forEach(b=>b.classList.remove('open'));
+}
+
 function toggleSizesAccordion(bar){
+  closeAllAdminAccordions();
   bar.classList.toggle('open');
-  const body = document.getElementById('sizesBody');
-  body.classList.toggle('open');
+  document.getElementById('sizesBody').classList.toggle('open');
 }
 
 function toggleStampsAccordion(bar){
