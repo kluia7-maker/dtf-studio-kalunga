@@ -581,8 +581,8 @@ function openSheet(posId){
       renderMiniZones(s);
       updatePreviewInfo(s);
       updateConfirmBtn();
-      document.querySelectorAll('.scard').forEach(el=>el.classList.remove('sel'));
-      c.classList.add('sel');
+      document.querySelectorAll('.sheet-card').forEach(el=>el.classList.remove('selected'));
+  c.classList.add('selected');
     });
 
   if(hoverStamp){ updatePreviewInfo(hoverStamp); }
