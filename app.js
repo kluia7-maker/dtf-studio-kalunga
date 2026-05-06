@@ -1651,9 +1651,10 @@ function renderVitrine(){
       const low = item.estoque > 0 && item.estoque <= 5;
       const card = document.createElement('div');
       card.className = 'vt-card'+(esgotado?' esgotado':'');
-      card.innerHTML=`
-        <div class="vt-card-img">
+     card.innerHTML=`
+        <div class="vt-card-img" onclick="openVitrineDetail('${camp.id}',${idx})" style="cursor:pointer;position:relative">
           ${item.imgUrl?`<img src="${item.imgUrl}" alt="${item.nome||''}" loading="lazy">`:'<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px">🖼️</div>'}
+          ${(item.imgs||[]).length>1?`<div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.6);border-radius:20px;padding:2px 7px;font-size:10px;color:#fff">${item.imgs.length} fotos</div>`:''}
         </div>
         ${esgotado?'<div class="vt-badge-esgotado">ESGOTADO</div>':''}
         <div class="vt-card-body">
@@ -1662,8 +1663,8 @@ function renderVitrine(){
           <div class="vt-card-stock ${low?'low':''}">
             ${esgotado?'Esgotado':`🔥 Restam ${item.estoque}`}
           </div>
-          <button class="vt-btn" ${esgotado?'disabled':''} onclick="openVitrineOrder('${camp.id}',${idx})">
-            ${esgotado?'Esgotado':'Quero essa →'}
+          <button class="vt-btn" ${esgotado?'disabled':''} onclick="openVitrineDetail('${camp.id}',${idx})">
+            ${esgotado?'Esgotado':'Ver detalhes →'}
           </button>
         </div>
       `;
@@ -1671,7 +1672,58 @@ function renderVitrine(){
     });
   });
 }
+function openVitrineDetail(campId, itemIdx){
+  const camp = vitrineDB.find(c=>c.id===campId);
+  if(!camp) return;
+  const item = (camp.itens||[])[itemIdx];
+  if(!item) return;
+  const imgs = (item.imgs||[]).filter(Boolean);
+  if(!imgs.length && item.imgUrl) imgs.push(item.imgUrl);
+  let cur = 0;
+  const esgotado = (item.estoque||0)<=0;
 
+  let popup = document.getElementById('vitrineDetailPopup');
+  if(popup) popup.remove();
+  popup = document.createElement('div');
+  popup.id = 'vitrineDetailPopup';
+  popup.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.92);padding:16px;';
+
+  const render = ()=>{
+    popup.innerHTML=`
+      <div style="background:var(--surface);border-radius:18px;border:1px solid var(--border);width:100%;max-width:420px;overflow:hidden">
+        <div style="position:relative;background:#0a0a0a;line-height:0">
+          <img src="${imgs[cur]||''}" style="width:100%;max-height:55dvh;object-fit:contain;display:block">
+          ${imgs.length>1?`
+            <button onclick="vtDetailNav(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&#8592;</button>
+            <button onclick="vtDetailNav(1)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&#8594;</button>
+            <div style="position:absolute;bottom:8px;left:0;right:0;display:flex;gap:5px;justify-content:center">
+              ${imgs.map((_,i)=>`<div style="width:6px;height:6px;border-radius:50%;background:${i===cur?'#fff':'rgba(255,255,255,.3)'}"></div>`).join('')}
+            </div>
+          `:''}
+          <button onclick="document.getElementById('vitrineDetailPopup').remove()" style="position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.7);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>
+        <div style="padding:16px">
+          <div style="font-weight:700;font-size:15px;margin-bottom:4px">${item.nome||''}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--accent);margin-bottom:4px">R$ ${Number(item.preco).toFixed(2).replace('.',',')}</div>
+          <div style="font-size:11px;color:${esgotado?'var(--muted)':'var(--accent2)'};margin-bottom:14px">${esgotado?'Esgotado':'🔥 Restam '+item.estoque+' unidades'}</div>
+          <button onclick="document.getElementById('vitrineDetailPopup').remove();openVitrineOrder('${campId}',${itemIdx})"
+            style="width:100%;background:${esgotado?'var(--surface2)':'var(--accent)'};color:${esgotado?'var(--muted)':'#fff'};border:none;border-radius:50px;padding:12px;font-size:15px;font-weight:700;cursor:${esgotado?'default':'pointer'};font-family:'DM Sans',sans-serif;"
+            ${esgotado?'disabled':''}>
+            ${esgotado?'Esgotado':'🛍️ Quero essa →'}
+          </button>
+        </div>
+      </div>
+    `;
+    window.vtDetailNav = dir=>{
+      cur = (cur+dir+imgs.length)%imgs.length;
+      render();
+    };
+  };
+
+  render();
+  document.body.appendChild(popup);
+  popup.addEventListener('click', e=>{ if(e.target===popup) popup.remove(); });
+}
 // ── Vitrine order ──────────────────────────────────────
 let _vtPending = null;
 
@@ -1827,22 +1879,25 @@ async function loadCampsForAdmin(){
 function openAddItemPopup(campId){
   let popup = document.getElementById('addItemPopup');
   if(popup) popup.remove();
+  _pendingItemImgs = [null,null,null,null];
   popup = document.createElement('div');
   popup.id = 'addItemPopup';
-  popup.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88);padding:16px;';
+  popup.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88);padding:16px;overflow-y:auto;';
   popup.innerHTML = `
-    <div style="background:var(--surface);border-radius:18px;border:1px solid var(--border);width:100%;max-width:400px;padding:22px">
+    <div style="background:var(--surface);border-radius:18px;border:1px solid var(--border);width:100%;max-width:420px;padding:22px;margin:auto">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;margin-bottom:16px">📦 Novo Item</div>
       <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
         <div>
-          <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Imagem do produto</label>
-          <label style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1.5px dashed var(--muted2);border-radius:8px;padding:10px;cursor:pointer;font-size:12px;color:var(--muted)">
-            🖼️ Selecionar imagem
-            <input type="file" accept="image/*" style="display:none" onchange="previewItemImg(this)">
-          </label>
-          <div id="itemImgPreview" style="margin-top:6px;display:none">
-            <img id="itemImgThumb" src="" style="width:60px;height:60px;object-fit:contain;border-radius:8px;background:#111">
+          <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Imagens do produto (até 4)</label>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+            ${[0,1,2,3].map(i=>`
+              <label style="aspect-ratio:1;border-radius:8px;background:var(--surface2);border:1.5px dashed var(--muted2);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative" id="imgSlot_${i}">
+                <span style="font-size:20px">+</span>
+                <input type="file" accept="image/*" style="display:none" onchange="previewItemImgSlot(this,${i})">
+              </label>
+            `).join('')}
           </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">1ª imagem aparece no card · demais no popup de detalhes</div>
         </div>
         <div>
           <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nome do produto *</label>
@@ -1882,15 +1937,18 @@ function openAddItemPopup(campId){
   popup.addEventListener('click', e=>{ if(e.target===popup) popup.remove(); });
 }
 
-let _pendingItemImg = null;
+let _pendingItemImgs = [null,null,null,null];
 
-function previewItemImg(input){
+function previewItemImgSlot(input, idx){
   const file = input.files[0];
   if(!file) return;
   resizeImg(file, url=>{
-    _pendingItemImg = url;
-    document.getElementById('itemImgThumb').src = url;
-    document.getElementById('itemImgPreview').style.display = 'block';
+    _pendingItemImgs[idx] = url;
+    const slot = document.getElementById('imgSlot_'+idx);
+    if(slot){
+      slot.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px"><input type="file" accept="image/*" style="display:none" onchange="previewItemImgSlot(this,${idx})">`;
+      slot.style.border = '1.5px solid var(--green)';
+    }
   });
 }
 
@@ -1900,8 +1958,9 @@ async function submitAddItem(campId){
   const estoque = parseInt(document.getElementById('ni_estoque')?.value);
   const tams    = Array.from(document.querySelectorAll('input[name="ni_tam"]:checked')).map(c=>c.value);
   if(!nome||isNaN(preco)||isNaN(estoque)){ showToast('❌ Preencha nome, preço e estoque'); return; }
-  const item = { nome, preco, estoque, tamanhos: tams, imgUrl: _pendingItemImg||null };
-  _pendingItemImg = null;
+  const imgs = _pendingItemImgs.filter(Boolean);
+  const item = { nome, preco, estoque, tamanhos: tams, imgUrl: imgs[0]||null, imgs };
+  _pendingItemImgs = [null,null,null,null];
   try{
     const ref = db.collection('vitrine').doc(campId);
     const doc = await ref.get();
