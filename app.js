@@ -584,8 +584,6 @@ function openSheet(posId){
       document.querySelectorAll('.scard').forEach(el=>el.classList.remove('sel'));
       c.classList.add('sel');
     });
-    grid.appendChild(c);
-  });
 
   if(hoverStamp){ updatePreviewInfo(hoverStamp); }
   else {
