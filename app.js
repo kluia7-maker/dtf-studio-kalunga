@@ -2217,7 +2217,7 @@ function preloadAllMockups(){
 // GERADOR DE MOCKUP EM MASSA
 // ══════════════════════════════════════════════
 
-function renderAdminGerador(g){
+function renderAdminGerador(grid){
   const html=`<div class="acard" style="grid-column:1/-1;padding:0;overflow:hidden">
     <div class="accordion-bar" onclick="toggleGeradorAccordion(this)">
       <h3>🎨 Gerador de Mockup</h3>
@@ -2279,7 +2279,7 @@ function renderAdminGerador(g){
       </div>
     </div>
   </div>`;
-  g.insertAdjacentHTML('beforeend', html);
+  grid.insertAdjacentHTML('beforeend', html);
 }
 
 function toggleGeradorAccordion(bar){
