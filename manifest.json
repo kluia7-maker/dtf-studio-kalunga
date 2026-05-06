@@ -1,0 +1,22 @@
+{
+  "name": "DTF Studio Kalunga",
+  "short_name": "DTF Studio",
+  "description": "Personalize e compre camisetas DTF",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e0e0e",
+  "theme_color": "#ff4500",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://firebasestorage.googleapis.com/v0/b/app-vendas-estampas.firebasestorage.app/o/mockups%2FCAMISETA_FRENTE_BRANCO.webp?alt=media",
+      "sizes": "192x192",
+      "type": "image/webp"
+    },
+    {
+      "src": "https://firebasestorage.googleapis.com/v0/b/app-vendas-estampas.firebasestorage.app/o/mockups%2FCAMISETA_FRENTE_BRANCO.webp?alt=media",
+      "sizes": "512x512",
+      "type": "image/webp"
+    }
+  ]
+}
