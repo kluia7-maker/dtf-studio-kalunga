@@ -1213,10 +1213,9 @@ function toggleBgAccordion(bar){
 
 function togglePosAccordion(bar, bodyId){
   const isOpen = bar.classList.contains('open');
-  document.querySelectorAll('.pos-accordion-bar.open').forEach(b=>{
+  document.querySelectorAll('.pos-accordion-bar').forEach(b=>{
     b.classList.remove('open');
-    const bid = 'pos_'+b.dataset.posId;
-    document.getElementById(bid)?.classList.remove('open');
+    document.getElementById('pos_'+b.dataset.posId)?.classList.remove('open');
   });
   if(!isOpen){
     bar.classList.add('open');
