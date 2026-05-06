@@ -1213,7 +1213,7 @@ function toggleBgAccordion(bar){
 
 function togglePosAccordion(bar, bodyId){
   const isOpen = bar.classList.contains('open');
-  document.querySelectorAll('.accordion-body[id^="pos_"]').forEach(b=>{
+  document.querySelectorAll(".accordion-body[id^='pos_']").forEach(b=>{
     b.classList.remove('open');
   });
   document.querySelectorAll('.pos-accordion-bar').forEach(b=>{
