@@ -486,9 +486,9 @@ function toggleSizesAccordion(bar){
 }
 
 function toggleStampsAccordion(bar){
+  closeAllAdminAccordions();
   bar.classList.toggle('open');
-  const body = document.getElementById('stampsBody');
-  body.classList.toggle('open');
+  document.getElementById('stampsBody').classList.toggle('open');
 }
 // ══════════════════════════════════════════════════════
 // VIEW NAVIGATION
@@ -1206,6 +1206,7 @@ function restoreAdminAccordionState(openPosIds, stampsOpen, sizesOpen, bgOpen){
 }
 
 function toggleBgAccordion(bar){
+  closeAllAdminAccordions();
   bar.classList.toggle('open');
   document.getElementById('bgBody').classList.toggle('open');
 }
@@ -2092,6 +2093,7 @@ async function submitEditCamp(id){
 }
 
 function toggleCampAccordion(bar){
+  closeAllAdminAccordions();
   bar.classList.toggle('open');
   document.getElementById('campBody').classList.toggle('open');
 }
