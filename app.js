@@ -1212,8 +1212,16 @@ function toggleBgAccordion(bar){
 }
 
 function togglePosAccordion(bar, bodyId){
-  bar.classList.toggle('open');
-  document.getElementById(bodyId)?.classList.toggle('open');
+  const isOpen = bar.classList.contains('open');
+  document.querySelectorAll('.pos-accordion-bar.open').forEach(b=>{
+    b.classList.remove('open');
+    const bid = 'pos_'+b.dataset.posId;
+    document.getElementById(bid)?.classList.remove('open');
+  });
+  if(!isOpen){
+    bar.classList.add('open');
+    document.getElementById(bodyId)?.classList.add('open');
+  }
 }
 
 function delStampSingle(pid,idx){
