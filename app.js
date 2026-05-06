@@ -1604,7 +1604,7 @@ async function loadVitrineFromCloud(){
     for(const camp of vitrineDB){
       if(!camp.itens) camp.itens=[];
     }
-    showVitrinePopup();
+    if(!isAdmin) showVitrinePopup();
   }catch(e){
     console.warn('Vitrine offline:',e.message);
     vitrineDB=[];
