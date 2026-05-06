@@ -829,7 +829,7 @@ header{
   background:#111;line-height:0;
 }
 .vt-popup-img-wrap img{
-  width:100%;max-height:30dvh;object-fit:contain;display:block;
+  width:100%;max-height:10dvh;object-fit:contain;display:block;
 }
 .vt-popup-badge{
   position:absolute;bottom:10px;left:12px;
