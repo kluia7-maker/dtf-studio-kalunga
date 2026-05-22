@@ -1213,7 +1213,7 @@ function toggleBgAccordion(bar){
 
 function togglePosAccordion(bar, bodyId){
   const isOpen = bar.classList.contains('open');
-  document.querySelectorAll(".accordion-body[id^='pos_']").forEach(b=>{
+  document.querySelectorAll('.accordion-body[id^="pos_"]').forEach(b=>{
     b.classList.remove('open');
   });
   document.querySelectorAll('.pos-accordion-bar').forEach(b=>{
@@ -1375,6 +1375,7 @@ function renderAdmin(){
 
   g.innerHTML = sizesHtml + bgHtml + stampsHtml;
   renderAdminVitrine(g);
+  renderAdminZoneEditor(g);
 }
 function updateSize(product, idx, field, val){
   if(!sizesDB[product]) return;
@@ -2211,6 +2212,7 @@ renderMockup();
 updateCart();
 loadDBFromCloud();
 loadVitrineFromCloud();
+loadZonesFromFirebase();
 preloadAllMockups();
 
 // ── Pré-carregamento de todos os mockups ──────────────
@@ -2230,4 +2232,170 @@ function preloadAllMockups(){
       });
     });
   });
+}
+
+// ══════════════════════════════════════════════════════════════
+// EDITOR VISUAL DE ZONAS — Admin
+// ══════════════════════════════════════════════════════════════
+
+let _zeGarment = 'camiseta', _zeView = 'frente', _zeZones = null, _zeSelected = null;
+
+function renderAdminZoneEditor(g){
+  const html = `<div class="acard" style="grid-column:1/-1;padding:0;overflow:hidden">
+    <div class="accordion-bar" onclick="toggleZEAccordion(this)">
+      <h3>📐 Editor Visual de Zonas</h3>
+      <span class="accordion-arrow">▼</span>
+    </div>
+    <div class="accordion-body" id="zeBody">
+      <div style="padding:14px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Arraste as zonas, redimensione pelos cantos e ajuste a rotação. Salve no Firebase quando terminar.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="zeSelBtns">
+          ${['camiseta','moletom'].map(g2=>['frente','costas','lat-dir','lat-esq'].map(v=>`
+            <button class="ze-sel-btn" data-g="${g2}" data-v="${v}" onclick="zeSelect('${g2}','${v}',this)"
+              style="background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--muted);font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s">
+              ${g2==='camiseta'?'👕':'🧥'} ${g2} ${v}
+            </button>`).join('')).join('')}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 220px;gap:12px;align-items:start">
+          <div style="position:relative;border-radius:10px;overflow:hidden;background:#0a0a0a;line-height:0;user-select:none" id="zeStage">
+            <img id="zeImg" src="" style="width:100%;display:block;pointer-events:none;opacity:0.85">
+            <div id="zeOverlay" style="position:absolute;inset:0"></div>
+          </div>
+          <div style="background:var(--surface2);border-radius:10px;padding:12px;border:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Zona Selecionada</div>
+            <div id="zePanelEmpty" style="font-size:11px;color:var(--muted);padding:8px 0">Clique numa zona para editar</div>
+            <div id="zePanel" style="display:none">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--accent);margin-bottom:10px" id="zePanelName"></div>
+              ${[['Top (%)','zeTop'],['Left (%)','zeLeft'],['Largura (%)','zeW'],['Altura (%)','zeH'],['Rotação (°)','zeRot']].map(([lbl,id])=>`
+                <div style="margin-bottom:8px">
+                  <div style="font-size:10px;color:var(--muted);margin-bottom:3px">${lbl}</div>
+                  <input id="${id}" type="number" step="0.1"
+                    style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif"
+                    oninput="zeUpdateFromPanel()">
+                </div>`).join('')}
+            </div>
+            <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+              <button onclick="zeSave()" style="width:100%;background:var(--green);color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:6px">💾 Salvar no Firebase</button>
+              <button onclick="zeReset()" style="width:100%;background:var(--surface3);color:var(--muted);border:none;border-radius:8px;padding:7px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">↺ Resetar para padrão</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  g.insertAdjacentHTML('beforeend', html);
+  setTimeout(()=>{const b=document.querySelector('.ze-sel-btn');if(b)zeSelect('camiseta','frente',b);},200);
+}
+
+function toggleZEAccordion(bar){bar.classList.toggle('open');document.getElementById('zeBody').classList.toggle('open');}
+
+function zeSelect(gmt,view,btn){
+  _zeGarment=gmt;_zeView=view;
+  document.querySelectorAll('.ze-sel-btn').forEach(b=>{b.style.borderColor='var(--border)';b.style.color='var(--muted)';b.style.background='var(--surface2)';});
+  if(btn){btn.style.borderColor='var(--accent)';btn.style.color='var(--text)';btn.style.background='rgba(255,69,0,0.1)';}
+  const vm={frente:'FRENTE',costas:'COSTAS','lat-dir':'LATERAL_DIREITO','lat-esq':'LATERAL_ESQUERDO'};
+  const gm={camiseta:'CAMISETA',moletom:'MOLETOM'};
+  const img=document.getElementById('zeImg');
+  if(img) img.src=`${STORAGE_BASE}/mockups%2F${gm[gmt]}_${vm[view]}_BRANCO.webp?alt=media`;
+  _zeZones=JSON.parse(JSON.stringify(ZONES[`${gmt}-${view}`]||[]));
+  _zeSelected=null;zeDeselect();zeRender();
+}
+
+function zeRender(){
+  const overlay=document.getElementById('zeOverlay');const stage=document.getElementById('zeStage');
+  if(!overlay||!stage) return;
+  overlay.innerHTML='';
+  _zeZones.forEach((z,i)=>{
+    const el=document.createElement('div');
+    el.style.cssText=`position:absolute;top:${z.top}%;left:${z.left}%;width:${z.w}%;height:${z.h}%;border:2px solid ${_zeSelected===i?'#ff4500':'rgba(255,255,255,0.4)'};background:${_zeSelected===i?'rgba(255,69,0,0.15)':'rgba(255,255,255,0.05)'};cursor:move;box-sizing:border-box;transform:rotate(${z.rotate||0}deg);transform-origin:center;display:flex;align-items:center;justify-content:center;`;
+    const lbl=document.createElement('div');
+    lbl.textContent=POS_META[z.id]?.label||z.id;
+    lbl.style.cssText='font-size:9px;color:#fff;text-align:center;pointer-events:none;background:rgba(0,0,0,.5);padding:1px 4px;border-radius:3px;max-width:90%;overflow:hidden;white-space:nowrap;';
+    el.appendChild(lbl);
+    const rh=document.createElement('div');
+    rh.style.cssText='position:absolute;bottom:-4px;right:-4px;width:10px;height:10px;background:var(--accent);border-radius:2px;cursor:se-resize;z-index:2;';
+    rh.addEventListener('mousedown',e=>{e.stopPropagation();zeStartResize(e,i,stage);});
+    el.appendChild(rh);
+    el.addEventListener('mousedown',e=>{if(e.target===rh)return;zeStartDrag(e,i,stage);});
+    el.addEventListener('click',()=>zeSelectZone(i));
+    overlay.appendChild(el);
+  });
+}
+
+function zeSelectZone(idx){
+  _zeSelected=idx;zeRender();
+  const z=_zeZones[idx];
+  document.getElementById('zePanelEmpty').style.display='none';
+  document.getElementById('zePanel').style.display='block';
+  document.getElementById('zePanelName').textContent=POS_META[z.id]?.label||z.id;
+  document.getElementById('zeTop').value=z.top.toFixed(1);
+  document.getElementById('zeLeft').value=z.left.toFixed(1);
+  document.getElementById('zeW').value=z.w.toFixed(1);
+  document.getElementById('zeH').value=z.h.toFixed(1);
+  document.getElementById('zeRot').value=(z.rotate||0).toFixed(1);
+}
+
+function zeDeselect(){
+  document.getElementById('zePanelEmpty').style.display='block';
+  document.getElementById('zePanel').style.display='none';
+}
+
+function zeUpdateFromPanel(){
+  if(_zeSelected===null) return;
+  const z=_zeZones[_zeSelected];
+  z.top=parseFloat(document.getElementById('zeTop').value)||0;
+  z.left=parseFloat(document.getElementById('zeLeft').value)||0;
+  z.w=parseFloat(document.getElementById('zeW').value)||10;
+  z.h=parseFloat(document.getElementById('zeH').value)||10;
+  z.rotate=parseFloat(document.getElementById('zeRot').value)||0;
+  zeRender();
+}
+
+function zeStartDrag(e,idx,stage){
+  e.preventDefault();zeSelectZone(idx);
+  const rect=stage.getBoundingClientRect();
+  const z=_zeZones[idx];const sx=e.clientX,sy=e.clientY,ol=z.left,ot=z.top;
+  const onMove=ev=>{
+    z.left=Math.max(0,Math.min(100-z.w,ol+(ev.clientX-sx)/rect.width*100));
+    z.top=Math.max(0,Math.min(100-z.h,ot+(ev.clientY-sy)/rect.height*100));
+    zeRender();zeSelectZone(idx);
+  };
+  const onUp=()=>{document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);};
+  document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);
+}
+
+function zeStartResize(e,idx,stage){
+  e.preventDefault();
+  const rect=stage.getBoundingClientRect();
+  const z=_zeZones[idx];const sx=e.clientX,sy=e.clientY,ow=z.w,oh=z.h;
+  const onMove=ev=>{
+    z.w=Math.max(5,ow+(ev.clientX-sx)/rect.width*100);
+    z.h=Math.max(3,oh+(ev.clientY-sy)/rect.height*100);
+    zeRender();zeSelectZone(idx);
+  };
+  const onUp=()=>{document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);};
+  document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);
+}
+
+async function zeSave(){
+  const key=`${_zeGarment}-${_zeView}`;
+  ZONES[key]=JSON.parse(JSON.stringify(_zeZones));
+  try{
+    const zonesData={};Object.keys(ZONES).forEach(k=>{zonesData[k]=ZONES[k];});
+    await db.collection('config').doc('zones').set({zones:zonesData});
+    showToast('✅ Zonas salvas!','var(--green)');
+  }catch(e){showToast('❌ Erro ao salvar');console.error(e);}
+}
+
+function zeReset(){
+  if(!confirm('Resetar para as coordenadas originais?')) return;
+  _zeZones=JSON.parse(JSON.stringify(ZONES[`${_zeGarment}-${_zeView}`]||[]));
+  _zeSelected=null;zeDeselect();zeRender();
+}
+
+async function loadZonesFromFirebase(){
+  try{
+    const doc=await db.collection('config').doc('zones').get();
+    if(doc.exists&&doc.data().zones) Object.assign(ZONES,doc.data().zones);
+  }catch(e){console.warn('Zonas padrão em uso.');}
 }
