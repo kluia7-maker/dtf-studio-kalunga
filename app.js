@@ -1,14 +1,3 @@
-// ══════════════════════════════════════════════════════
-// CONFIG
-// ══════════════════════════════════════════════════════
-const WHATSAPP_NUMBER = '5511964206019';
-
-// Tamanhos separados por produto — editáveis pelo admin
-const DEFAULT_SIZES = {
-  camiseta:[
-    {id:'P',  label:'P',  altura:70,  largura:50},
-    {id:'M',  label:'M',  altura:73,  largura:51},
-    {id:'G',  label:'G',  altura:75,  largura:53},
     {id:'GG', label:'GG', altura:76,  largura:54},
     {id:'XG', label:'XG', altura:82,  largura:65.5},
   ],
@@ -480,15 +469,15 @@ function closeAllAdminAccordions(){
 }
 
 function toggleSizesAccordion(bar){
-  closeAllAdminAccordions();
-  bar.classList.toggle('open');
-  document.getElementById('sizesBody').classList.toggle('open');
+    const isOpen = bar.classList.contains('open');
+    closeAllAdminAccordions();
+    if(!isOpen){ bar.classList.add('open'); document.getElementById('sizesBody').classList.add('open'); }
 }
 
 function toggleStampsAccordion(bar){
-  closeAllAdminAccordions();
-  bar.classList.toggle('open');
-  document.getElementById('stampsBody').classList.toggle('open');
+    const isOpen = bar.classList.contains('open');
+    closeAllAdminAccordions();
+    if(!isOpen){ bar.classList.add('open'); document.getElementById('stampsBody').classList.add('open'); }
 }
 // ══════════════════════════════════════════════════════
 // VIEW NAVIGATION
@@ -1206,9 +1195,9 @@ function restoreAdminAccordionState(openPosIds, stampsOpen, sizesOpen, bgOpen){
 }
 
 function toggleBgAccordion(bar){
-  closeAllAdminAccordions();
-  bar.classList.toggle('open');
-  document.getElementById('bgBody').classList.toggle('open');
+    const isOpen = bar.classList.contains('open');
+    closeAllAdminAccordions();
+    if(!isOpen){ bar.classList.add('open'); document.getElementById('bgBody').classList.add('open'); }
 }
 
 function togglePosAccordion(bar, bodyId){
@@ -2103,9 +2092,9 @@ async function submitEditCamp(id){
 }
 
 function toggleCampAccordion(bar){
-  closeAllAdminAccordions();
-  bar.classList.toggle('open');
-  document.getElementById('campBody').classList.toggle('open');
+    const isOpen = bar.classList.contains('open');
+    closeAllAdminAccordions();
+    if(!isOpen){ bar.classList.add('open'); document.getElementById('campBody').classList.add('open'); }
 }
 
 function openNewCamp(){
@@ -2256,7 +2245,7 @@ function renderAdminZoneEditor(g){
               ${g2==='camiseta'?'👕':'🧥'} ${g2} ${v}
             </button>`).join('')).join('')}
         </div>
-        <div style="display:grid;grid-template-columns:1fr 220px;gap:12px;align-items:start">
+        <div style="display:grid;grid-template-columns:minmax(200px, 500px);gap:12px;align-items:start">
           <div style="position:relative;border-radius:10px;overflow:hidden;background:#0a0a0a;line-height:0;user-select:none" id="zeStage">
             <img id="zeImg" src="" style="width:100%;display:block;pointer-events:none;opacity:0.85">
             <div id="zeOverlay" style="position:absolute;inset:0"></div>
