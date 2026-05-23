@@ -2048,7 +2048,7 @@ function openEditCamp(id, nome, inicio, fim, texto){
           <input id="ec_nome" type="text" value="${nome}"
             style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
         </div>
-        <div style="display:grid;grid-template-columns:50px, 160px 1fr;gap:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div>
             <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">📅 Data Início</label>
             <input id="ec_inicio" type="date" value="${inicio}"
@@ -2115,7 +2115,7 @@ function openNewCamp(){
             <input id="nc_nome" type="text" placeholder="Ex: Maio Amarelo, Geek Week..."
               style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
           </div>
-          <div style="display:grid;grid-template-columns:50px, 160px 1fr;gap:10px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div>
               <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">📅 Data Início</label>
               <input id="nc_inicio" type="date" value="${today}"
@@ -2245,7 +2245,7 @@ function renderAdminZoneEditor(g){
               ${g2==='camiseta'?'👕':'🧥'} ${g2} ${v}
             </button>`).join('')).join('')}
         </div>
-        <div style="display:grid;grid-template-columns:minmax(50px, 160px);gap:12px;align-items:start">
+        <div style="display:grid-template-columns:1fr 220px;gap:12px;align-items:start">
           <div style="position:relative;border-radius:10px;overflow:hidden;background:#0a0a0a;line-height:0;user-select:none" id="zeStage">
             <img id="zeImg" src="" style="width:100%;display:block;pointer-events:none;opacity:0.85">
             <div id="zeOverlay" style="position:absolute;inset:0"></div>
