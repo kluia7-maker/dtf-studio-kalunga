@@ -462,7 +462,7 @@ window.addEventListener('resize',()=>{
 });
 
 function closeAllAdminAccordions(){
-  ['sizesBody','bgBody','stampsBody','campBody'].forEach(id=>{
+  ['sizesBody','bgBody','stampsBody','campBody','zeBody'].forEach(id=>{
     document.getElementById(id)?.classList.remove('open');
   });
   document.querySelectorAll('.accordion-bar').forEach(b=>b.classList.remove('open'));
@@ -2245,7 +2245,7 @@ function renderAdminZoneEditor(g){
               ${g2==='camiseta'?'👕':'🧥'} ${g2} ${v}
             </button>`).join('')).join('')}
         </div>
-        <div style="display:grid;grid-template-columns:minmax(200px, 500px);gap:12px;align-items:start">
+        <div style="display:grid;grid-template-columns:minmax(200px, 360px);gap:12px;align-items:start">
           <div style="position:relative;border-radius:10px;overflow:hidden;background:#0a0a0a;line-height:0;user-select:none" id="zeStage">
             <img id="zeImg" src="" style="width:100%;display:block;pointer-events:none;opacity:0.85">
             <div id="zeOverlay" style="position:absolute;inset:0"></div>
@@ -2276,7 +2276,12 @@ function renderAdminZoneEditor(g){
   setTimeout(()=>{const b=document.querySelector('.ze-sel-btn');if(b)zeSelect('camiseta','frente',b);},200);
 }
 
-function toggleZEAccordion(bar){bar.classList.toggle('open');document.getElementById('zeBody').classList.toggle('open');}
+function toggleZEAccordion(bar){
+  const isOpen = bar.classList.contains('open');
+  closeAllAdminAccordions();
+  document.getElementById('zeBody')?.classList.remove('open');
+  if(!isOpen){ bar.classList.add('open'); document.getElementById('zeBody').classList.add('open'); }
+}
 
 function zeSelect(gmt,view,btn){
   _zeGarment=gmt;_zeView=view;
