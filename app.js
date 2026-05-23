@@ -1,3 +1,14 @@
+// ══════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════
+const WHATSAPP_NUMBER = '5511964206019';
+
+// Tamanhos separados por produto — editáveis pelo admin
+const DEFAULT_SIZES = {
+  camiseta:[
+    {id:'P',  label:'P',  altura:70,  largura:50},
+    {id:'M',  label:'M',  altura:73,  largura:51},
+    {id:'G',  label:'G',  altura:75,  largura:53},
     {id:'GG', label:'GG', altura:76,  largura:54},
     {id:'XG', label:'XG', altura:82,  largura:65.5},
   ],
@@ -461,23 +472,27 @@ window.addEventListener('resize',()=>{
   resizeTimer = setTimeout(placeZones, 80);
 });
 
-function closeAllAdminAccordions(){
+function closeAllAdminAccordions(exceptBar){
   ['sizesBody','bgBody','stampsBody','campBody','zeBody'].forEach(id=>{
     document.getElementById(id)?.classList.remove('open');
   });
-  document.querySelectorAll('.accordion-bar').forEach(b=>b.classList.remove('open'));
+  document.querySelectorAll('.accordion-bar').forEach(b=>{
+    if(b!==exceptBar) b.classList.remove('open');
+  });
 }
 
 function toggleSizesAccordion(bar){
-    const isOpen = bar.classList.contains('open');
-    closeAllAdminAccordions();
-    if(!isOpen){ bar.classList.add('open'); document.getElementById('sizesBody').classList.add('open'); }
+  const isOpen = bar.classList.contains('open');
+  closeAllAdminAccordions(bar);
+  if(!isOpen){ bar.classList.add('open'); document.getElementById('sizesBody').classList.add('open'); }
+  else { bar.classList.remove('open'); }
 }
 
 function toggleStampsAccordion(bar){
-    const isOpen = bar.classList.contains('open');
-    closeAllAdminAccordions();
-    if(!isOpen){ bar.classList.add('open'); document.getElementById('stampsBody').classList.add('open'); }
+  const isOpen = bar.classList.contains('open');
+  closeAllAdminAccordions(bar);
+  if(!isOpen){ bar.classList.add('open'); document.getElementById('stampsBody').classList.add('open'); }
+  else { bar.classList.remove('open'); }
 }
 // ══════════════════════════════════════════════════════
 // VIEW NAVIGATION
@@ -1195,23 +1210,15 @@ function restoreAdminAccordionState(openPosIds, stampsOpen, sizesOpen, bgOpen){
 }
 
 function toggleBgAccordion(bar){
-    const isOpen = bar.classList.contains('open');
-    closeAllAdminAccordions();
-    if(!isOpen){ bar.classList.add('open'); document.getElementById('bgBody').classList.add('open'); }
+  const isOpen = bar.classList.contains('open');
+  closeAllAdminAccordions(bar);
+  if(!isOpen){ bar.classList.add('open'); document.getElementById('bgBody').classList.add('open'); }
+  else { bar.classList.remove('open'); }
 }
 
 function togglePosAccordion(bar, bodyId){
-  const isOpen = bar.classList.contains('open');
-  document.querySelectorAll('.accordion-body[id^="pos_"]').forEach(b=>{
-    b.classList.remove('open');
-  });
-  document.querySelectorAll('.pos-accordion-bar').forEach(b=>{
-    b.classList.remove('open');
-  });
-  if(!isOpen){
-    bar.classList.add('open');
-    document.getElementById(bodyId)?.classList.add('open');
-  }
+  bar.classList.toggle('open');
+  document.getElementById(bodyId)?.classList.toggle('open');
 }
 
 function delStampSingle(pid,idx){
@@ -1364,7 +1371,7 @@ function renderAdmin(){
 
   g.innerHTML = sizesHtml + bgHtml + stampsHtml;
   renderAdminVitrine(g);
-  renderAdminZoneEditor(g);
+  renderAdminGerador(g);
 }
 function updateSize(product, idx, field, val){
   if(!sizesDB[product]) return;
@@ -2092,9 +2099,10 @@ async function submitEditCamp(id){
 }
 
 function toggleCampAccordion(bar){
-    const isOpen = bar.classList.contains('open');
-    closeAllAdminAccordions();
-    if(!isOpen){ bar.classList.add('open'); document.getElementById('campBody').classList.add('open'); }
+  const isOpen = bar.classList.contains('open');
+  closeAllAdminAccordions(bar);
+  if(!isOpen){ bar.classList.add('open'); document.getElementById('campBody').classList.add('open'); }
+  else { bar.classList.remove('open'); }
 }
 
 function openNewCamp(){
@@ -2201,7 +2209,6 @@ renderMockup();
 updateCart();
 loadDBFromCloud();
 loadVitrineFromCloud();
-loadZonesFromFirebase();
 preloadAllMockups();
 
 // ── Pré-carregamento de todos os mockups ──────────────
@@ -2220,176 +2227,173 @@ function preloadAllMockups(){
         img.src = url;
       });
     });
-  });
-}
+	loadVitrineFromCloud()
+	// ══════════════════════════════════════════════
+// GERADOR DE MOCKUP EM MASSA
+// ══════════════════════════════════════════════
 
-// ══════════════════════════════════════════════════════════════
-// EDITOR VISUAL DE ZONAS — Admin
-// ══════════════════════════════════════════════════════════════
-
-let _zeGarment = 'camiseta', _zeView = 'frente', _zeZones = null, _zeSelected = null;
-
-function renderAdminZoneEditor(g){
-  const html = `<div class="acard" style="grid-column:1/-1;padding:0;overflow:hidden">
-    <div class="accordion-bar" onclick="toggleZEAccordion(this)">
-      <h3>📐 Editor Visual de Zonas</h3>
+function renderAdminGerador(g){
+  const html=`<div class="acard" style="grid-column:1/-1;padding:0;overflow:hidden">
+    <div class="accordion-bar" onclick="toggleGeradorAccordion(this)">
+      <h3>🎨 Gerador de Mockup</h3>
       <span class="accordion-arrow">▼</span>
     </div>
-    <div class="accordion-body" id="zeBody">
+    <div class="accordion-body" id="geradorBody">
       <div style="padding:14px">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Arraste as zonas, redimensione pelos cantos e ajuste a rotação. Salve no Firebase quando terminar.</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="zeSelBtns">
-          ${['camiseta','moletom'].map(g2=>['frente','costas','lat-dir','lat-esq'].map(v=>`
-            <button class="ze-sel-btn" data-g="${g2}" data-v="${v}" onclick="zeSelect('${g2}','${v}',this)"
-              style="background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--muted);font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s">
-              ${g2==='camiseta'?'👕':'🧥'} ${g2} ${v}
-            </button>`).join('')).join('')}
-        </div>
-        <div style="display:grid;grid-template-columns:minmax(200px, 360px);gap:12px;align-items:start">
-          <div style="position:relative;border-radius:10px;overflow:hidden;background:#0a0a0a;line-height:0;user-select:none" id="zeStage">
-            <img id="zeImg" src="" style="width:100%;display:block;pointer-events:none;opacity:0.85">
-            <div id="zeOverlay" style="position:absolute;inset:0"></div>
-          </div>
-          <div style="background:var(--surface2);border-radius:10px;padding:12px;border:1px solid var(--border)">
-            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Zona Selecionada</div>
-            <div id="zePanelEmpty" style="font-size:11px;color:var(--muted);padding:8px 0">Clique numa zona para editar</div>
-            <div id="zePanel" style="display:none">
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--accent);margin-bottom:10px" id="zePanelName"></div>
-              ${[['Top (%)','zeTop'],['Left (%)','zeLeft'],['Largura (%)','zeW'],['Altura (%)','zeH'],['Rotação (°)','zeRot']].map(([lbl,id])=>`
-                <div style="margin-bottom:8px">
-                  <div style="font-size:10px;color:var(--muted);margin-bottom:3px">${lbl}</div>
-                  <input id="${id}" type="number" step="0.1"
-                    style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif"
-                    oninput="zeUpdateFromPanel()">
-                </div>`).join('')}
-            </div>
-            <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
-              <button onclick="zeSave()" style="width:100%;background:var(--green);color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:6px">💾 Salvar no Firebase</button>
-              <button onclick="zeReset()" style="width:100%;background:var(--surface3);color:var(--muted);border:none;border-radius:8px;padding:7px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">↺ Resetar para padrão</button>
-            </div>
+        <div style="margin-bottom:14px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Base do Mockup</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${['camiseta','moletom'].map(g=>
+              ['branco','preto','cinza'].map(c=>`
+                <button class="gen-base-btn" data-garment="${g}" data-color="${c}"
+                  onclick="selectGenBase('${g}','${c}',this)"
+                  style="background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--muted);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s">
+                  ${g==='camiseta'?'👕':'🧥'} ${g} ${c}
+                </button>
+              `).join('')
+            ).join('')}
           </div>
         </div>
+        <div id="genBasePreview" style="display:none;margin-bottom:14px;text-align:center">
+          <img id="genBaseImg" src="" style="max-height:180px;object-fit:contain;border-radius:10px;background:#0a0a0a;padding:8px">
+        </div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Estampas — arraste para reordenar</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Slot 1 = Frente · Slot 2 = Costas · Slot 3 = Lat. Direita · Slot 4 = Lat. Esquerda</div>
+        <div style="margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1.5px dashed var(--muted2);border-radius:8px;padding:10px 12px;cursor:pointer;font-size:12px;color:var(--muted)">
+            📁 Selecionar estampas (PNG)
+            <input type="file" accept="image/png,image/*" multiple style="display:none" onchange="loadGenStamps(this)">
+          </label>
+        </div>
+        <div id="genSlots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+          ${[0,1,2,3].map(i=>`
+            <div class="gen-slot" id="genSlot_${i}" draggable="true"
+              ondragstart="genDragStart(event,${i})"
+              ondragover="genDragOver(event)"
+              ondrop="genDrop(event,${i})"
+              style="aspect-ratio:1;border-radius:10px;background:var(--surface2);border:1.5px dashed var(--muted2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px;position:relative;transition:border-color .2s">
+              <div style="font-size:10px;color:var(--muted);font-weight:700">Slot ${i+1}</div>
+              <div style="font-size:9px;color:var(--muted)">${['Frente','Costas','Lat. Dir','Lat. Esq'][i]}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="margin-bottom:14px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Posição da estampa</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${['peito-grande','peito-central','costas-grande','costas-central','manga-dir','manga-esq'].map(p=>`
+              <button class="gen-pos-btn" data-pos="${p}"
+                onclick="selectGenPos('${p}',this)"
+                style="background:var(--surface2);border:1.5px solid var(--border);border-radius:20px;padding:4px 10px;color:var(--muted);font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s">
+                ${POS_META[p]?.label||p}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+        <button onclick="gerarMockups()" style="width:100%;background:var(--accent);color:#fff;border:none;border-radius:50px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">⚡ Gerar e Baixar Mockups</button>
+        <div id="genProgress" style="display:none;margin-top:12px;text-align:center;font-size:12px;color:var(--muted)"></div>
       </div>
     </div>
   </div>`;
   g.insertAdjacentHTML('beforeend', html);
-  setTimeout(()=>{const b=document.querySelector('.ze-sel-btn');if(b)zeSelect('camiseta','frente',b);},200);
 }
 
-function toggleZEAccordion(bar){
-  const isOpen = bar.classList.contains('open');
-  closeAllAdminAccordions();
-  document.getElementById('zeBody')?.classList.remove('open');
-  if(!isOpen){ bar.classList.add('open'); document.getElementById('zeBody').classList.add('open'); }
+function toggleGeradorAccordion(bar){
+  bar.classList.toggle('open');
+  document.getElementById('geradorBody').classList.toggle('open');
 }
 
-function zeSelect(gmt,view,btn){
-  _zeGarment=gmt;_zeView=view;
-  document.querySelectorAll('.ze-sel-btn').forEach(b=>{b.style.borderColor='var(--border)';b.style.color='var(--muted)';b.style.background='var(--surface2)';});
-  if(btn){btn.style.borderColor='var(--accent)';btn.style.color='var(--text)';btn.style.background='rgba(255,69,0,0.1)';}
-  const vm={frente:'FRENTE',costas:'COSTAS','lat-dir':'LATERAL_DIREITO','lat-esq':'LATERAL_ESQUERDO'};
-  const gm={camiseta:'CAMISETA',moletom:'MOLETOM'};
-  const img=document.getElementById('zeImg');
-  if(img) img.src=`${STORAGE_BASE}/mockups%2F${gm[gmt]}_${vm[view]}_BRANCO.webp?alt=media`;
-  _zeZones=JSON.parse(JSON.stringify(ZONES[`${gmt}-${view}`]||[]));
-  _zeSelected=null;zeDeselect();zeRender();
+let _genGarment=null,_genColor=null,_genSlots=[null,null,null,null],_genPos='peito-grande',_genDragIdx=null;
+
+function selectGenBase(garment,color,btn){
+  _genGarment=garment;_genColor=color;
+  document.querySelectorAll('.gen-base-btn').forEach(b=>{b.style.borderColor='var(--border)';b.style.color='var(--muted)';b.style.background='var(--surface2)';});
+  btn.style.borderColor='var(--accent)';btn.style.color='var(--text)';btn.style.background='rgba(255,69,0,0.1)';
+  const colorMap={branco:'BRANCO',preto:'PRETO',cinza:'CINZA'};
+  const garmentMap={camiseta:'CAMISETA',moletom:'MOLETOM'};
+  const url=`${STORAGE_BASE}/mockups%2F${garmentMap[garment]}_FRENTE_${colorMap[color]}.webp?alt=media`;
+  document.getElementById('genBaseImg').src=url;
+  document.getElementById('genBasePreview').style.display='block';
 }
 
-function zeRender(){
-  const overlay=document.getElementById('zeOverlay');const stage=document.getElementById('zeStage');
-  if(!overlay||!stage) return;
-  overlay.innerHTML='';
-  _zeZones.forEach((z,i)=>{
-    const el=document.createElement('div');
-    el.style.cssText=`position:absolute;top:${z.top}%;left:${z.left}%;width:${z.w}%;height:${z.h}%;border:2px solid ${_zeSelected===i?'#ff4500':'rgba(255,255,255,0.4)'};background:${_zeSelected===i?'rgba(255,69,0,0.15)':'rgba(255,255,255,0.05)'};cursor:move;box-sizing:border-box;transform:rotate(${z.rotate||0}deg);transform-origin:center;display:flex;align-items:center;justify-content:center;`;
-    const lbl=document.createElement('div');
-    lbl.textContent=POS_META[z.id]?.label||z.id;
-    lbl.style.cssText='font-size:9px;color:#fff;text-align:center;pointer-events:none;background:rgba(0,0,0,.5);padding:1px 4px;border-radius:3px;max-width:90%;overflow:hidden;white-space:nowrap;';
-    el.appendChild(lbl);
-    const rh=document.createElement('div');
-    rh.style.cssText='position:absolute;bottom:-4px;right:-4px;width:10px;height:10px;background:var(--accent);border-radius:2px;cursor:se-resize;z-index:2;';
-    rh.addEventListener('mousedown',e=>{e.stopPropagation();zeStartResize(e,i,stage);});
-    el.appendChild(rh);
-    el.addEventListener('mousedown',e=>{if(e.target===rh)return;zeStartDrag(e,i,stage);});
-    el.addEventListener('click',()=>zeSelectZone(i));
-    overlay.appendChild(el);
+function selectGenPos(pos,btn){
+  _genPos=pos;
+  document.querySelectorAll('.gen-pos-btn').forEach(b=>{b.style.borderColor='var(--border)';b.style.color='var(--muted)';});
+  btn.style.borderColor='var(--accent)';btn.style.color='var(--accent)';
+}
+
+function loadGenStamps(input){
+  const files=Array.from(input.files).slice(0,4);
+  files.forEach((file,i)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{_genSlots[i]={name:file.name.replace(/\.[^.]+$/,''),url:e.target.result};renderGenSlot(i);};
+    reader.readAsDataURL(file);
   });
+  input.value='';
 }
 
-function zeSelectZone(idx){
-  _zeSelected=idx;zeRender();
-  const z=_zeZones[idx];
-  document.getElementById('zePanelEmpty').style.display='none';
-  document.getElementById('zePanel').style.display='block';
-  document.getElementById('zePanelName').textContent=POS_META[z.id]?.label||z.id;
-  document.getElementById('zeTop').value=z.top.toFixed(1);
-  document.getElementById('zeLeft').value=z.left.toFixed(1);
-  document.getElementById('zeW').value=z.w.toFixed(1);
-  document.getElementById('zeH').value=z.h.toFixed(1);
-  document.getElementById('zeRot').value=(z.rotate||0).toFixed(1);
+function renderGenSlot(i){
+  const slot=document.getElementById('genSlot_'+i);if(!slot)return;
+  const s=_genSlots[i];const labels=['Frente','Costas','Lat. Dir','Lat. Esq'];
+  if(s){
+    slot.innerHTML=`<img src="${s.url}" style="width:100%;height:70%;object-fit:contain;border-radius:6px"><div style="font-size:9px;color:var(--accent);font-weight:700">Slot ${i+1}</div><div style="font-size:8px;color:var(--muted)">${labels[i]}</div><button onclick="clearGenSlot(${i})" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer">×</button>`;
+    slot.style.borderColor='var(--green)';
+  }else{
+    slot.innerHTML=`<div style="font-size:10px;color:var(--muted);font-weight:700">Slot ${i+1}</div><div style="font-size:9px;color:var(--muted)">${labels[i]}</div>`;
+    slot.style.borderColor='var(--muted2)';
+  }
 }
 
-function zeDeselect(){
-  document.getElementById('zePanelEmpty').style.display='block';
-  document.getElementById('zePanel').style.display='none';
+function clearGenSlot(i){_genSlots[i]=null;renderGenSlot(i);}
+function genDragStart(e,i){_genDragIdx=i;e.dataTransfer.effectAllowed='move';}
+function genDragOver(e){e.preventDefault();}
+function genDrop(e,i){
+  e.preventDefault();if(_genDragIdx===null||_genDragIdx===i)return;
+  const tmp=_genSlots[i];_genSlots[i]=_genSlots[_genDragIdx];_genSlots[_genDragIdx]=tmp;
+  renderGenSlot(i);renderGenSlot(_genDragIdx);_genDragIdx=null;
 }
 
-function zeUpdateFromPanel(){
-  if(_zeSelected===null) return;
-  const z=_zeZones[_zeSelected];
-  z.top=parseFloat(document.getElementById('zeTop').value)||0;
-  z.left=parseFloat(document.getElementById('zeLeft').value)||0;
-  z.w=parseFloat(document.getElementById('zeW').value)||10;
-  z.h=parseFloat(document.getElementById('zeH').value)||10;
-  z.rotate=parseFloat(document.getElementById('zeRot').value)||0;
-  zeRender();
+const GEN_VIEW_FILENAME={0:'FRENTE',1:'COSTAS',2:'LATERAL_DIREITO',3:'LATERAL_ESQUERDO'};
+
+async function gerarMockups(){
+  if(!_genGarment||!_genColor){showToast('❌ Escolha a base');return;}
+  if(!_genSlots.some(Boolean)){showToast('❌ Adicione estampas');return;}
+  const prog=document.getElementById('genProgress');
+  prog.style.display='block';
+  const colorMap={branco:'BRANCO',preto:'PRETO',cinza:'CINZA'};
+  const garmentMap={camiseta:'CAMISETA',moletom:'MOLETOM'};
+  for(let i=0;i<4;i++){
+    if(!_genSlots[i])continue;
+    const stamp=_genSlots[i];
+    const viewName=GEN_VIEW_FILENAME[i];
+    const zoneKey=`${_genGarment}-${['frente','costas','lat-dir','lat-esq'][i]}`;
+    const baseUrl=`${STORAGE_BASE}/mockups%2F${garmentMap[_genGarment]}_${viewName}_${colorMap[_genColor]}.webp?alt=media`;
+    prog.textContent=`⏳ Gerando ${['Frente','Costas','Lat. Dir','Lat. Esq'][i]}...`;
+    try{await renderGenCanvas(baseUrl,stamp.url,zoneKey,stamp.name+'_'+viewName);}
+    catch(e){console.error('Erro:',viewName,e);}
+  }
+  prog.textContent='✅ Concluído!';
+  showToast('✅ Mockups gerados!','var(--green)');
 }
 
-function zeStartDrag(e,idx,stage){
-  e.preventDefault();zeSelectZone(idx);
-  const rect=stage.getBoundingClientRect();
-  const z=_zeZones[idx];const sx=e.clientX,sy=e.clientY,ol=z.left,ot=z.top;
-  const onMove=ev=>{
-    z.left=Math.max(0,Math.min(100-z.w,ol+(ev.clientX-sx)/rect.width*100));
-    z.top=Math.max(0,Math.min(100-z.h,ot+(ev.clientY-sy)/rect.height*100));
-    zeRender();zeSelectZone(idx);
-  };
-  const onUp=()=>{document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);};
-  document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);
+function loadImgCors(url){
+  return new Promise((res,rej)=>{const img=new Image();img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=rej;img.src=url;});
 }
 
-function zeStartResize(e,idx,stage){
-  e.preventDefault();
-  const rect=stage.getBoundingClientRect();
-  const z=_zeZones[idx];const sx=e.clientX,sy=e.clientY,ow=z.w,oh=z.h;
-  const onMove=ev=>{
-    z.w=Math.max(5,ow+(ev.clientX-sx)/rect.width*100);
-    z.h=Math.max(3,oh+(ev.clientY-sy)/rect.height*100);
-    zeRender();zeSelectZone(idx);
-  };
-  const onUp=()=>{document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);};
-  document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);
+async function renderGenCanvas(baseUrl,stampDataUrl,zoneKey,filename){
+  const SIZE=1000;const canvas=document.createElement('canvas');canvas.width=SIZE;canvas.height=SIZE;
+  const ctx=canvas.getContext('2d');
+  const baseImg=await loadImgCors(baseUrl);
+  ctx.drawImage(baseImg,0,0,SIZE,SIZE);
+  const zones=ZONES[zoneKey]||[];
+  const zone=zones.find(z=>z.id===_genPos)||zones[0];
+  if(!zone)return;
+  const stampImg=await loadImgCors(stampDataUrl);
+  const x=(zone.left/100)*SIZE,y=(zone.top/100)*SIZE,w=(zone.w/100)*SIZE,h=(zone.h/100)*SIZE;
+  ctx.save();
+  if(zone.rotate){ctx.translate(x+w/2,y+h/2);ctx.rotate(zone.rotate*Math.PI/180);ctx.drawImage(stampImg,-w/2,-h/2,w,h);}
+  else{ctx.drawImage(stampImg,x,y,w,h);}
+  ctx.restore();
+  return new Promise(res=>{canvas.toBlob(blob=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);res();},'image/png');});
 }
-
-async function zeSave(){
-  const key=`${_zeGarment}-${_zeView}`;
-  ZONES[key]=JSON.parse(JSON.stringify(_zeZones));
-  try{
-    const zonesData={};Object.keys(ZONES).forEach(k=>{zonesData[k]=ZONES[k];});
-    await db.collection('config').doc('zones').set({zones:zonesData});
-    showToast('✅ Zonas salvas!','var(--green)');
-  }catch(e){showToast('❌ Erro ao salvar');console.error(e);}
-}
-
-function zeReset(){
-  if(!confirm('Resetar para as coordenadas originais?')) return;
-  _zeZones=JSON.parse(JSON.stringify(ZONES[`${_zeGarment}-${_zeView}`]||[]));
-  _zeSelected=null;zeDeselect();zeRender();
-}
-
-async function loadZonesFromFirebase(){
-  try{
-    const doc=await db.collection('config').doc('zones').get();
-    if(doc.exists&&doc.data().zones) Object.assign(ZONES,doc.data().zones);
-  }catch(e){console.warn('Zonas padrão em uso.');}
+  });
 }
