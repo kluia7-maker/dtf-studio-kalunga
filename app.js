@@ -2245,7 +2245,7 @@ function renderAdminZoneEditor(g){
               ${g2==='camiseta'?'👕':'🧥'} ${g2} ${v}
             </button>`).join('')).join('')}
         </div>
-        <div style="display:grid;grid-template-columns:minmax(200px, 360px);gap:12px;align-items:start">
+        <div style="display:grid;grid-template-columns:minmax(50px, 160px);gap:12px;align-items:start">
           <div style="position:relative;border-radius:10px;overflow:hidden;background:#0a0a0a;line-height:0;user-select:none" id="zeStage">
             <img id="zeImg" src="" style="width:100%;display:block;pointer-events:none;opacity:0.85">
             <div id="zeOverlay" style="position:absolute;inset:0"></div>
